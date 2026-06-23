@@ -1,0 +1,56 @@
+# Copy to config/settings.yaml and edit. This drives the whole pipeline.
+
+account:
+  handle: "@your_handle"
+  # Your content niche. Be specific — this feeds trend research and prompts.
+  # Examples: "personal finance for Gen Z", "AI productivity tips",
+  #           "cozy desk setups", "30-second history facts"
+  niche: "REPLACE_ME"
+  # Audience region/timezone — used for best-time-to-post suggestions.
+  timezone: "America/New_York"
+
+publishing:
+  # "inbox"  -> push to TikTok app drafts, you finish + publish manually
+  #             (works for UNAUDITED apps, safest, recommended to start)
+  # "direct" -> Direct Post via API (requires app AUDIT for public posts;
+  #             unaudited apps are forced to SELF_ONLY / private)
+  mode: "inbox"
+
+  # Only used in "direct" mode. Unaudited apps must use SELF_ONLY.
+  # After your app passes audit: PUBLIC_TO_EVERYONE | MUTUAL_FOLLOW_FRIENDS |
+  # FOLLOWER_OF_CREATOR | SELF_ONLY
+  privacy_level: "SELF_ONLY"
+
+  disable_comment: false
+  disable_duet: false
+  disable_stitch: false
+  # AI-generated content MUST be disclosed (TikTok policy). When true the
+  # script sets the AIGC flag so the video is labeled "AI-generated".
+  is_ai_generated: true
+
+video:
+  min_seconds: 15
+  max_seconds: 60
+  # TikTok Creator Rewards Program requires videos > 1 minute to qualify for
+  # that specific reward pool. Set this to 61 if you target Creator Rewards.
+  target_seconds: 34
+  aspect_ratio: "9:16"
+  resolution: "1080x1920"
+  fps: 30
+
+higgsfield:
+  # "mcp"  -> use the Higgsfield MCP server inside Claude Code (no API key)
+  # "rest" -> call the Higgsfield REST API with HF_API_KEY/HF_SECRET
+  mode: "mcp"
+  # Higgsfield generates short clips (~5-15s). We chain N clips to reach
+  # target_seconds, then stitch them in build_video.py.
+  default_model: "soul"          # e.g. soul | cinema-studio | veo | kling
+  clip_seconds: 8
+
+metadata:
+  # 3-6 focused hashtags beat 15 generic ones. Mix 1 broad + 2 niche + 1 trend.
+  default_hashtags:
+    - "#REPLACE_niche_tag"
+  # Appended to every description. Keep your AI disclosure here too.
+  description_footer: "Made with AI. Follow for more 👀"
+  max_title_chars: 2200

@@ -1,0 +1,29 @@
+# Secrets
+.env
+*.token
+tokens.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Generated media + working files (keep these out of git)
+content/raw/
+content/clips/
+content/renders/
+content/published/
+*.mp4
+*.mov
+*.wav
+*.mp3
+!content/sample/**
+
+# Tracking data
+data/*.csv
+data/*.sqlite
+
+# OS
+.DS_Store
