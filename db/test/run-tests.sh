@@ -30,6 +30,13 @@ fi
 
 WORK="${FB_WORK:-$(cd "$REPO_DB_DIR/.." && pwd)/.dbtest}"
 SQL_DIR="${FB_WORK:-$REPO_DB_DIR}"
+# The root path copies every file flat into FB_WORK; the non-root path reads from
+# the repo, where assertions.sql lives in the test/ subdirectory.
+if [ -n "${FB_WORK:-}" ]; then
+  ASSERTIONS="$FB_WORK/assertions.sql"
+else
+  ASSERTIONS="$REPO_DB_DIR/test/assertions.sql"
+fi
 [ -n "${FB_WORK:-}" ] || mkdir -p "$WORK"
 
 PGDATA="$WORK/data"
@@ -57,7 +64,7 @@ run -f "$SQL_DIR/functions.sql" >/dev/null
 run -f "$SQL_DIR/policies.sql"  >/dev/null
 
 echo "running assertions…"
-run -f "$SQL_DIR/assertions.sql"
+run -f "$ASSERTIONS"
 
 echo
 echo "PASS — all database integration tests green"
