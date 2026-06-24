@@ -9,9 +9,8 @@ This repo holds **FlowBase CRM** — the blueprint and build artifacts for a
 alternative) designed to run on free tiers and open-source software, with billing
 via PayPal recurring subscriptions.
 
-It is **documentation + database artifacts**, not a running application. There is
-no app server or test suite in the repo yet — the runnable parts are SQL files.
-Start at `README.md`, which indexes everything.
+It is **documentation + database artifacts + a runnable application**. Start at
+`README.md`, which indexes everything.
 
 ## Layout
 
@@ -21,6 +20,9 @@ Start at `README.md`, which indexes everything.
 - `db/schema.sql` — PostgreSQL schema; the multi-tenant backbone.
 - `db/seed.sql` — demo tenant, default pipeline/stages, sample records.
 - `db/policies.sql` — Row-Level Security policies for tenant isolation.
+- `app/` — the Next.js 14 (App Router) + Supabase application implementing the
+  open-source build path, including the PayPal billing webhook.
+- `n8n/` — importable automation workflow JSON (lead intake, task reminders).
 
 ## Core architecture (read before changing `db/`)
 
@@ -67,6 +69,43 @@ Conventions in the schema:
   adding seed rows (every table you seed needs a unique key to conflict on).
 - Dashboards read the `v_pipeline_value`, `v_conversion`, `v_activity_daily`
   views — extend these rather than computing metrics ad hoc.
+
+## Working with the application (`app/`)
+
+Commands (run from `app/`):
+
+```bash
+npm install
+npm run dev         # local dev server on :3000
+npm run build       # production build — must pass
+npm run typecheck   # tsc --noEmit — must pass
+npm run lint        # next lint
+```
+
+There is no automated test suite yet; `build` + `typecheck` are the gate. Both
+currently pass.
+
+Architecture rules that matter:
+- **Three Supabase clients, used deliberately** (`src/lib/supabase/`):
+  `server.ts` (RSC/server actions, RLS-scoped to the signed-in user),
+  `client.ts` (browser, RLS-scoped), and `admin.ts` (service-role, **bypasses
+  RLS**). `admin.ts` is for trusted server-only cross-tenant writes — currently
+  just the PayPal webhook. Never import `admin.ts` into a client component or a
+  normal user-facing query; doing so would break tenant isolation.
+- **Auth + tenant scoping is implicit.** Because RLS is enabled, server/client
+  components just query their table and get only their tenant's rows. Don't add
+  manual `account_id` filters expecting them to be the security boundary — RLS is.
+- `src/middleware.ts` refreshes the session and redirects unauthenticated users
+  to `/login` (public paths: `/login`, `/auth`, `/api/paypal`).
+- **The PayPal webhook** (`src/app/api/paypal/webhook/route.ts`) must verify the
+  signature before any DB write and is idempotent on the PayPal txn id. It mirrors
+  workflows W5/W6 — keep it in sync with `docs/07` if you change billing logic.
+- `src/lib/types.ts` mirrors `db/schema.sql` by hand (no codegen). If you change
+  the schema, update these types too.
+- Money is integer pennies everywhere; format via `src/lib/format.ts`.
+- **Next.js version:** pinned to 14.2.35. `npm audit` flags advisories fixed only
+  in Next 15/16 (a breaking upgrade — 15+ makes `cookies()`/`headers()` async).
+  See `app/README.md` before bumping the major.
 
 ## Conventions for the docs
 

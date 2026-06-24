@@ -1,0 +1,71 @@
+{
+  "name": "FlowBase W3 — Task Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "minutes", "minutesInterval": 15 }] }
+      },
+      "id": "aaaaaaa1-1111-4111-8111-aaaaaaaaaaaa",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select t.id, t.title, t.due_at, u.email as owner_email, u.full_name\nfrom tasks t\njoin users u on u.id = t.assigned_user_id\nwhere t.status = 'open'\n  and t.remind_at is not null\n  and t.remind_at <= now()\n  and coalesce(t.description, '') not like '%[reminded]%';",
+        "options": {}
+      },
+      "id": "aaaaaaa2-2222-4222-8222-aaaaaaaaaaaa",
+      "name": "Find Due Tasks",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [520, 300],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key", "value": "={{ $env.BREVO_API_KEY }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"FlowBase CRM\", \"email\": \"hello@flowbasecrm.com\" },\n  \"to\": [{ \"email\": \"{{ $json.owner_email }}\" }],\n  \"subject\": \"Reminder: {{ $json.title }}\",\n  \"htmlContent\": \"<p>Hi {{ $json.full_name }}, this task is due: <strong>{{ $json.title }}</strong>.</p>\"\n}",
+        "options": {}
+      },
+      "id": "aaaaaaa3-3333-4333-8333-aaaaaaaaaaaa",
+      "name": "Email Owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "update tasks set description = coalesce(description,'') || ' [reminded]' where id = $1;",
+        "options": { "queryReplacement": "={{ $json.id }}" }
+      },
+      "id": "aaaaaaa4-4444-4444-8444-aaaaaaaaaaaa",
+      "name": "Mark Reminded",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [1080, 300],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    }
+  ],
+  "connections": {
+    "Every 15 min": { "main": [[{ "node": "Find Due Tasks", "type": "main", "index": 0 }]] },
+    "Find Due Tasks": { "main": [[{ "node": "Email Owner", "type": "main", "index": 0 }]] },
+    "Email Owner": { "main": [[{ "node": "Mark Reminded", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "flowbase" }]
+}

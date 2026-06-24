@@ -26,6 +26,8 @@ to launch the business.
 | `db/schema.sql` | PostgreSQL schema — the multi-tenant backbone (validated) |
 | `db/seed.sql` | Demo tenant + default pipeline + sample data (idempotent) |
 | `db/policies.sql` | Row-Level Security: per-tenant isolation (validated) |
+| `app/` | **The running application** — Next.js + Supabase CRM + PayPal webhook (builds & type-checks) |
+| `n8n/` | Importable automation workflows (lead intake, task reminders) |
 
 ## Quick start (open-source path)
 
@@ -36,7 +38,17 @@ psql "$DATABASE_URL" -f db/seed.sql        # demo tenant + default pipeline
 psql "$DATABASE_URL" -f db/policies.sql    # tenant isolation via RLS
 ```
 
-Then follow `docs/06-setup-opensource.md`. Prefer no servers? Start with
+Then run the app:
+
+```bash
+cd app
+cp .env.example .env.local      # Supabase + PayPal credentials
+npm install
+npm run dev                      # http://localhost:3000
+```
+
+See `app/README.md` for the application details and `docs/06-setup-opensource.md`
+for the full deployment walkthrough. Prefer no servers? Start with
 `docs/05-setup-nocode.md` instead.
 
 ## Two build paths — pick one
