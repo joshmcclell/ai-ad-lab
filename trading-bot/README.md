@@ -11,9 +11,10 @@ lots**.
 > its behaviour. Past backtest results do not predict future returns.
 
 > 💻 **On a Chromebook / no Windows?** Backtest for free on ChromeOS's Linux
-> container — see **[CHROMEBOOK.md](CHROMEBOOK.md)**. To trade **live** from a
-> Chromebook, run MT5 + the bot on a cloud Windows VPS and control it via Remote
-> Desktop — full walkthrough in **[GO_LIVE.md](GO_LIVE.md)**.
+> container — see **[CHROMEBOOK.md](CHROMEBOOK.md)**. To run **live** for free on
+> an Intel/AMD (`x86_64`) Chromebook via Wine, see **[WINE_SETUP.md](WINE_SETUP.md)**.
+> For an always-on setup (or an ARM Chromebook), run MT5 + the bot on a cloud
+> Windows VPS and control it via Remote Desktop — **[GO_LIVE.md](GO_LIVE.md)**.
 
 ---
 
