@@ -147,4 +147,71 @@ end $$;
 reset role;
 \echo '   ok'
 
+\echo '== T5: apply_retention enforces GDPR retention policies (W7) =='
+-- Acme (demo) seed policies: contact = 1095d anonymize, activity = 730d delete.
+-- Seed a stale contact + stale activity (past cutoff) and fresh ones (within).
+insert into contacts (id, account_id, kind, first_name, last_name, email, last_activity_at)
+values ('cccccccc-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111', 'lead', 'StaleLead', 'Old',
+        'stale@old.example', now() - interval '4 years')
+on conflict (id) do nothing;
+
+insert into contacts (id, account_id, kind, first_name, email, last_activity_at)
+values ('cccccccc-0000-0000-0000-000000000002',
+        '11111111-1111-1111-1111-111111111111', 'lead', 'FreshLead',
+        'fresh@new.example', now())
+on conflict (id) do nothing;
+
+insert into activities (id, account_id, contact_id, type, direction, body, occurred_at)
+values ('eeeeeeee-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111',
+        'cccccccc-0000-0000-0000-000000000001', 'note', 'internal',
+        'ancient note', now() - interval '3 years')
+on conflict (id) do nothing;
+
+select apply_retention();
+
+do $$
+declare v record; n int;
+begin
+  -- Stale contact anonymised (PII stripped, row kept).
+  select first_name, email into v
+    from contacts where id = 'cccccccc-0000-0000-0000-000000000001';
+  if v.first_name <> '[redacted]' or v.email is not null then
+    raise exception 'T5a: stale contact not anonymised (name=%, email=%)', v.first_name, v.email;
+  end if;
+
+  -- Fresh contact untouched.
+  select first_name into v from contacts where id = 'cccccccc-0000-0000-0000-000000000002';
+  if v.first_name <> 'FreshLead' then
+    raise exception 'T5b: fresh contact wrongly anonymised (name=%)', v.first_name;
+  end if;
+
+  -- Original demo contact (recent) still intact -> Acme still has Tom.
+  select count(*) into n from contacts
+    where id = '55555555-5555-5555-5555-555555555555' and first_name = 'Tom';
+  if n <> 1 then raise exception 'T5c: recent contact Tom was wrongly swept'; end if;
+
+  -- Stale activity hard-deleted; recent demo activity kept.
+  select count(*) into n from activities where id = 'eeeeeeee-0000-0000-0000-000000000001';
+  if n <> 0 then raise exception 'T5d: stale activity not deleted'; end if;
+  select count(*) into n from activities where id = '88888888-8888-8888-8888-888888888888';
+  if n <> 1 then raise exception 'T5e: recent demo activity wrongly deleted'; end if;
+
+  -- Audit trail written for the sweep.
+  select count(*) into n from audit_log where action like 'retention_%';
+  if n < 1 then raise exception 'T5f: retention sweep wrote no audit_log rows'; end if;
+end $$;
+
+-- Idempotency: a second sweep changes nothing further (0 new anonymisations).
+do $$
+declare affected_total int;
+begin
+  select coalesce(sum(affected),0) into affected_total from apply_retention();
+  if affected_total <> 0 then
+    raise exception 'T5g: second retention sweep was not idempotent (% affected)', affected_total;
+  end if;
+end $$;
+\echo '   ok'
+
 \echo 'ALL ASSERTIONS PASSED'

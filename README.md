@@ -25,9 +25,11 @@ to launch the business.
 | `docs/11-scaling.md` | Add clients without adding time |
 | `db/schema.sql` | PostgreSQL schema — the multi-tenant backbone (validated) |
 | `db/seed.sql` | Demo tenant + default pipeline + sample data (idempotent) |
-| `db/functions.sql` | `provision_account()` — the atomic "add a client" routine |
+| `db/functions.sql` | `provision_account()` + `apply_retention()` (GDPR sweep) |
 | `db/policies.sql` | Row-Level Security: per-tenant isolation (validated) |
-| `db/test/` | Integration tests (seed idempotency, provisioning, RLS) — all green |
+| `db/schedule.sql` | Optional pg_cron schedule for the nightly retention sweep |
+| `db/backup.sh` | Portable `pg_dump` backup with rotation (verified restorable) |
+| `db/test/` | Integration tests (seed idempotency, provisioning, RLS, retention) — all green |
 | `app/` | **The running application** — Next.js + Supabase CRM, operator console + PayPal webhook (builds & type-checks) |
 | `n8n/` | Importable automation workflows (lead intake, task reminders) |
 

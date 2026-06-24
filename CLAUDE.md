@@ -19,9 +19,11 @@ It is **documentation + database artifacts + a runnable application**. Start at
   service summary → onboarding → GDPR → scaling).
 - `db/schema.sql` — PostgreSQL schema; the multi-tenant backbone.
 - `db/seed.sql` — demo tenant, default pipeline/stages, sample records.
-- `db/functions.sql` — server-side functions; notably `provision_account()`,
-  the atomic "add a client" routine.
+- `db/functions.sql` — server-side functions: `provision_account()` (the atomic
+  "add a client" routine) and `apply_retention()` (the GDPR retention sweep, W7).
 - `db/policies.sql` — Row-Level Security policies for tenant isolation.
+- `db/schedule.sql` — optional pg_cron schedule for the nightly retention sweep.
+- `db/backup.sh` — portable `pg_dump` backup with rotation (W8).
 - `db/test/` — integration test harness (`run-tests.sh` + `assertions.sql`).
 - `app/` — the Next.js 14 (App Router) + Supabase application implementing the
   open-source build path, including the PayPal billing webhook and operator console.
@@ -76,6 +78,12 @@ keeps the Unix socket dir short (<100 chars). Add new invariants to
 hand-inserting an `accounts` row, which would skip the default pipeline, stages,
 retention policies, and owner user. The PayPal webhook and the operator console
 both call it; keep it the single provisioning path.
+
+**GDPR retention is `apply_retention()`** (W7) — it enforces every active
+`data_retention_policies` row (anonymise/delete) and is idempotent. Schedule it
+via `db/schedule.sql` (pg_cron) or n8n. Backups are `db/backup.sh` (W8), run from
+an external scheduler. Both are exercised/verified by the test harness and a
+restore check respectively — keep them green when changing the schema.
 
 Conventions in the schema:
 - Money is stored in integer **pennies** (`*_pennies`), currency in `char(3)`

@@ -64,3 +64,79 @@ begin
   return v_account_id;
 end;
 $$;
+
+-- apply_retention(): the GDPR retention sweep (workflow W7, docs/10).
+-- Walks every active row in data_retention_policies and enforces it:
+--   contact  + anonymize -> strip PII, keep the row for aggregates
+--   contact  + delete    -> soft-delete (deleted_at), hard-deleted later by grace
+--   activity + delete    -> hard-delete old communication-log rows
+--   activity + anonymize -> blank the subject/body, keep the row
+-- Records a per-policy summary in audit_log and returns what it did. Idempotent:
+-- already-processed rows fall outside the where-clauses on the next run.
+-- Reference time is last activity (falling back to created_at) so retention is
+-- measured from inactivity, not creation.
+create or replace function apply_retention()
+returns table(entity text, action text, affected integer)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  pol     record;
+  n       integer;
+  cutoff  timestamptz;
+begin
+  for pol in select * from data_retention_policies where is_active loop
+    n := 0;
+    cutoff := now() - make_interval(days => pol.retain_days);
+
+    if pol.entity = 'contact' and pol.action = 'anonymize' then
+      with done as (
+        update contacts c
+           set first_name = '[redacted]', last_name = null, email = null,
+               phone = null, company = null, job_title = null,
+               consent_marketing = false, updated_at = now()
+         where c.account_id = pol.account_id
+           and c.deleted_at is null
+           and c.first_name is distinct from '[redacted]'
+           and coalesce(c.last_activity_at, c.created_at) < cutoff
+        returning 1)
+      select count(*) into n from done;
+
+    elsif pol.entity = 'contact' and pol.action = 'delete' then
+      with done as (
+        update contacts c set deleted_at = now()
+         where c.account_id = pol.account_id
+           and c.deleted_at is null
+           and coalesce(c.last_activity_at, c.created_at) < cutoff
+        returning 1)
+      select count(*) into n from done;
+
+    elsif pol.entity = 'activity' and pol.action = 'delete' then
+      with done as (
+        delete from activities a
+         where a.account_id = pol.account_id and a.occurred_at < cutoff
+        returning 1)
+      select count(*) into n from done;
+
+    elsif pol.entity = 'activity' and pol.action = 'anonymize' then
+      with done as (
+        update activities a set subject = null, body = '[redacted]'
+         where a.account_id = pol.account_id
+           and a.occurred_at < cutoff
+           and a.body is distinct from '[redacted]'
+        returning 1)
+      select count(*) into n from done;
+    end if;
+
+    if n > 0 then
+      insert into audit_log (account_id, action, entity, changes)
+      values (pol.account_id, 'retention_' || pol.action, pol.entity,
+              jsonb_build_object('affected', n, 'retain_days', pol.retain_days));
+    end if;
+
+    entity := pol.entity; action := pol.action; affected := n;
+    return next;
+  end loop;
+end;
+$$;

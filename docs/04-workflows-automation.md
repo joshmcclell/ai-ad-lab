@@ -60,20 +60,28 @@ self-host) or **Make** (Path A / free tier). Node names match n8n.
 3. Alert you (email/Slack) + optional dunning email to the client.
 
 ## W7 — Nightly data-retention sweep  *(GDPR — see `10-gdpr-uk.md`)*
-**Trigger:** Schedule (daily 02:00).
-**Steps:**
-1. For each `data_retention_policies` row, find records older than `retain_days`.
-2. If `action='anonymize'` → null personal fields, keep aggregate.
-3. If `action='delete'` → soft-delete (`deleted_at`) then hard-delete after grace.
-4. Write each action to `audit_log`.
+**Built.** Implemented as the `apply_retention()` function in `db/functions.sql`
+and covered by the test harness (T5). It walks every active row in
+`data_retention_policies` and: anonymises (strips PII, keeps the row) or
+soft-deletes contacts past `retain_days`, deletes/anonymises old `activities`,
+and writes a summary to `audit_log`. It is idempotent.
+**Schedule it** either way:
+- **In-database (Supabase):** `db/schedule.sql` registers a nightly pg_cron job.
+- **Via n8n:** import `n8n/W7-retention-sweep.json` (schedule → `select apply_retention();`).
+Run on demand any time with `select * from apply_retention();`.
 
 ## W8 — Nightly backup & export  *(requirement #8)*
-**Trigger:** Schedule (daily 03:00).
+**Built.** `db/backup.sh` takes a portable, gzipped `pg_dump` and rotates old
+backups (verified: produces a dump that restores cleanly into a fresh database).
+**Trigger:** Schedule (daily 03:00) from any external scheduler — cron on a free
+VM, a GitHub Action, or an n8n *Execute Command* node (pg_dump needs shell
+access, so it can't run inside Supabase/pg_cron).
 **Steps:**
-- **Path B:** `pg_dump` the database → upload to free object storage
-  (Supabase Storage / Backblaze B2 10 GB free / Google Drive). Keep 7–30 days.
-- **Path A:** scheduled CSV/Excel export of each NocoDB table → same storage.
-- Log success/failure; alert you on failure.
+1. `DATABASE_URL=… BACKUP_DIR=… db/backup.sh` writes `flowbase-<ts>.sql.gz`.
+2. Sync `BACKUP_DIR` to free off-site storage (Backblaze B2 10 GB free / Supabase
+   Storage / Google Drive) with rclone. Keep 7–30 days (`BACKUP_RETAIN_DAYS`).
+- **Path A (no-code):** scheduled CSV/Excel export of each NocoDB table → same storage.
+- Restore: `gunzip -c <file> | psql "$DATABASE_URL"`.
 
 ## W9 — Monthly billing reconciliation
 **Trigger:** Schedule (daily).

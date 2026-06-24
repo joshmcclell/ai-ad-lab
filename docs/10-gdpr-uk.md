@@ -24,8 +24,8 @@ customers' data; **you process it on their behalf**. That means:
 | Purpose limitation | Data only used for the client's CRM; isolated per tenant |
 | Data minimisation | Only the fields in `db/schema.sql`; custom fields are opt-in |
 | Accuracy | Contacts editable; `updated_at` tracked |
-| Storage limitation | `data_retention_policies` + nightly sweep W7 (anonymise/delete) |
-| Integrity & confidentiality | Tenant isolation via RLS (`db/policies.sql`); roles; backups (W8) |
+| Storage limitation | `data_retention_policies` + the `apply_retention()` sweep (W7, `db/functions.sql`), scheduled nightly via `db/schedule.sql` |
+| Integrity & confidentiality | Tenant isolation via RLS (`db/policies.sql`); roles; verified backups (`db/backup.sh`, W8) |
 | Accountability | `audit_log` records create/update/delete/export/login |
 
 ## Data subject rights — how you fulfil them
@@ -41,8 +41,11 @@ customers' data; **you process it on their behalf**. That means:
 
 ## Concrete setup checklist
 - [ ] Add a consent checkbox to every lead-capture form (records `consent_source`).
-- [ ] Configure default `data_retention_policies` per tenant at provisioning
-      (seed sets contact=3yr anonymise, activity=2yr delete — adjust per client).
+- [ ] `data_retention_policies` are created automatically by `provision_account()`
+      (contact = 3yr anonymise, activity = 2yr delete — adjust per client).
+- [ ] Schedule the retention sweep: `db/schedule.sql` (pg_cron) or the
+      `n8n/W7-retention-sweep.json` workflow. Verify with `select * from apply_retention();`.
+- [ ] Schedule backups: `db/backup.sh` from cron / a GitHub Action / n8n.
 - [ ] Enable `audit_log` writes in every create/update/delete workflow.
 - [ ] Store backups encrypted, in the **UK/EU region** where possible
       (Supabase EU region; Backblaze/B2 EU bucket).

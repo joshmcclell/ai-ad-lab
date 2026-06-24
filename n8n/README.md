@@ -10,8 +10,13 @@ File**, then set credentials and activate.
 |------|----------|---------|
 | `W1-lead-intake.json` | New lead → contact + 24h follow-up task + welcome email | Webhook `POST /flowbase-lead` |
 | `W3-task-reminders.json` | Email task owners when a reminder is due | Schedule (every 15 min) |
+| `W7-retention-sweep.json` | Run the GDPR retention sweep (`apply_retention()`) | Schedule (nightly 02:00) |
 
-The other workflows (W2, W4, W7, W8, W9) are specified step-by-step in
+W7 just calls the `apply_retention()` DB function — if you're on Supabase you can
+skip n8n for it and use `../db/schedule.sql` (pg_cron) instead. Backups (W8) run
+from `../db/backup.sh` via cron / a GitHub Action / an n8n *Execute Command* node.
+
+The remaining workflows (W2, W4, W9) are specified step-by-step in
 `../docs/04-workflows-automation.md` and follow the same shape — add them the
 same way as you need them.
 

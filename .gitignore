@@ -1,0 +1,8 @@
+# Local backup output from db/backup.sh
+backups/
+*.sql.gz
+
+# Throwaway test cluster (if ever created inside the repo)
+.dbtest/
+
+.DS_Store
