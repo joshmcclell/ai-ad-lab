@@ -1,18 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format";
 import { completeTask } from "../actions";
-import type { Task } from "@/lib/types";
+import { loadTasks } from "@/lib/data";
 
 export default async function TasksPage() {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("tasks")
-    .select("*")
-    .eq("status", "open")
-    .order("due_at", { ascending: true })
-    .limit(200);
-
-  const tasks = (data ?? []) as Task[];
+  const tasks = await loadTasks();
   const now = Date.now();
 
   return (

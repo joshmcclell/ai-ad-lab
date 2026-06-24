@@ -1,27 +1,14 @@
 import { requirePlatformAdmin } from "@/lib/auth";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { formatMoney, formatDate } from "@/lib/format";
+import { loadAccounts } from "@/lib/data";
 import { ProvisionForm } from "./ProvisionForm";
-import type { Account } from "@/lib/types";
-
-interface AccountRow extends Account {
-  created_at: string;
-  subscriptions: { status: string; last_payment_at: string | null }[] | null;
-}
 
 // Operator console: provision new client tenants and see all accounts with
-// their billing status. Platform-admin only; uses the service-role client to
-// read across every tenant.
+// their billing status. Platform-admin only; reads across every tenant.
 export default async function AdminPage() {
   await requirePlatformAdmin();
 
-  const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("accounts")
-    .select("id, name, status, plan_price_pennies, plan_currency, created_at, subscriptions(status, last_payment_at)")
-    .order("created_at", { ascending: false });
-
-  const accounts = (data ?? []) as unknown as AccountRow[];
+  const accounts = await loadAccounts();
 
   const mrr = accounts
     .filter((a) => a.status === "active")

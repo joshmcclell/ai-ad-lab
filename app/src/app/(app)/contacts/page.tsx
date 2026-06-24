@@ -1,18 +1,9 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { contactName, formatDate } from "@/lib/format";
-import type { Contact } from "@/lib/types";
+import { loadContacts } from "@/lib/data";
 
 export default async function ContactsPage() {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("contacts")
-    .select("*")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  const contacts = (data ?? []) as Contact[];
+  const contacts = await loadContacts();
 
   return (
     <div>

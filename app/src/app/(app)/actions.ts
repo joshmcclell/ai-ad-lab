@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { IS_DEMO } from "@/lib/demo";
 
 export async function signOut() {
+  if (IS_DEMO) redirect("/dashboard");
   const supabase = createClient();
   await supabase.auth.signOut();
   redirect("/login");
@@ -16,6 +18,10 @@ export async function addActivity(formData: FormData) {
   const accountId = String(formData.get("account_id"));
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
+  if (IS_DEMO) {
+    revalidatePath(`/contacts/${contactId}`);
+    return;
+  }
 
   const supabase = createClient();
   const {
@@ -40,6 +46,10 @@ export async function addActivity(formData: FormData) {
 export async function moveDeal(formData: FormData) {
   const dealId = String(formData.get("deal_id"));
   const stageId = String(formData.get("stage_id"));
+  if (IS_DEMO) {
+    revalidatePath("/pipeline");
+    return;
+  }
 
   const supabase = createClient();
   await supabase.from("deals").update({ stage_id: stageId }).eq("id", dealId);
@@ -50,6 +60,10 @@ export async function moveDeal(formData: FormData) {
 // Toggle a task between open and done.
 export async function completeTask(formData: FormData) {
   const taskId = String(formData.get("task_id"));
+  if (IS_DEMO) {
+    revalidatePath("/tasks");
+    return;
+  }
   const supabase = createClient();
   await supabase
     .from("tasks")

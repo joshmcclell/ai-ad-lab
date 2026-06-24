@@ -1,20 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/format";
 import { moveDeal } from "../actions";
-import type { Deal, Stage } from "@/lib/types";
+import { loadPipeline } from "@/lib/data";
 
 // Visual pipeline board: stages as columns, deals as cards. Moving a deal uses a
 // lightweight <select> server action (no client-side drag dependency needed).
 export default async function PipelinePage() {
-  const supabase = createClient();
-
-  const [{ data: stageRows }, { data: dealRows }] = await Promise.all([
-    supabase.from("stages").select("*").order("position", { ascending: true }),
-    supabase.from("deals").select("*").eq("status", "open"),
-  ]);
-
-  const stages = (stageRows ?? []) as Stage[];
-  const deals = (dealRows ?? []) as Deal[];
+  const { stages, deals } = await loadPipeline();
   const byStage = (stageId: string) => deals.filter((d) => d.stage_id === stageId);
 
   return (

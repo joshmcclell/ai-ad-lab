@@ -1,11 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { IS_DEMO } from "@/lib/demo";
 
 type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // Refreshes the Supabase auth session on every request and guards app routes.
 // Unauthenticated users are redirected to /login (except for public paths).
 export async function updateSession(request: NextRequest) {
+  // Demo mode has no auth backend — let every request through.
+  if (IS_DEMO) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

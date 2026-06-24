@@ -28,7 +28,26 @@ user only ever sees their own tenant. The PayPal webhook is the one deliberate
 exception: it uses the service-role client (`src/lib/supabase/admin.ts`) because
 it must update billing across tenants — it is never imported by client code.
 
-## Run locally
+## See it immediately (demo mode — no backend)
+
+With **no setup and no database**, the app runs fully populated with sample data
+and no login screen:
+
+```bash
+cd app
+npm install
+npm run dev       # http://localhost:3000  → redirects to the dashboard
+```
+
+Demo mode turns on automatically whenever `NEXT_PUBLIC_SUPABASE_URL` is unset (or
+set `NEXT_PUBLIC_DEMO=1`). You'll see the dashboard, contacts, a contact's
+activity timeline, the pipeline board, tasks, and the operator console — all with
+in-memory data from `src/lib/demo.ts`. Forms are inert in demo (no backend to
+write to). To get a **public URL**, deploy this folder to Vercel (free) — it
+serves the same demo until you add the Supabase env vars below, at which point it
+becomes the real, multi-tenant CRM.
+
+## Run against a real database
 
 ```bash
 cp .env.example .env.local      # fill in Supabase + PayPal values

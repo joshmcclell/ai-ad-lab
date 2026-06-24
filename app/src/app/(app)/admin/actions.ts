@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { IS_DEMO } from "@/lib/demo";
 
 export interface ProvisionResult {
   ok: boolean;
@@ -27,6 +28,9 @@ export async function provisionClient(
 
   if (!name || !email) {
     return { ok: false, message: "Client name and owner email are required." };
+  }
+  if (IS_DEMO) {
+    return { ok: true, message: `(Demo) Would provision "${name}". Connect Supabase to make it real.` };
   }
 
   const supabase = createAdminClient();

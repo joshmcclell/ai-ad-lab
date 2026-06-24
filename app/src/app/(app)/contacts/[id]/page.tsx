@@ -1,30 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { contactName, formatDate } from "@/lib/format";
 import { addActivity } from "../../actions";
-import type { Activity, Contact } from "@/lib/types";
+import { loadContact } from "@/lib/data";
 
 export default async function ContactDetailPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const supabase = createClient();
-
-  const [{ data: contact }, { data: activityRows }] = await Promise.all([
-    supabase.from("contacts").select("*").eq("id", params.id).maybeSingle(),
-    supabase
-      .from("activities")
-      .select("*")
-      .eq("contact_id", params.id)
-      .order("occurred_at", { ascending: false })
-      .limit(100),
-  ]);
-
-  if (!contact) notFound();
-  const c = contact as Contact;
-  const activities = (activityRows ?? []) as Activity[];
+  const { contact: c, activities } = await loadContact(params.id);
+  if (!c) notFound();
 
   return (
     <div className="max-w-3xl">

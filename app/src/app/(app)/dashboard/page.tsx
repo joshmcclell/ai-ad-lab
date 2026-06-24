@@ -1,24 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/StatCard";
 import { formatMoney } from "@/lib/format";
-import type { PipelineValueRow, ConversionRow } from "@/lib/types";
+import { loadDashboard } from "@/lib/data";
 
 // Real-time dashboard built on the reporting views in db/schema.sql.
 export default async function DashboardPage() {
-  const supabase = createClient();
-
-  const [{ data: pipeline }, { data: conversion }, { count: leadCount }] =
-    await Promise.all([
-      supabase.from("v_pipeline_value").select("*"),
-      supabase.from("v_conversion").select("*").maybeSingle(),
-      supabase
-        .from("contacts")
-        .select("*", { count: "exact", head: true })
-        .eq("kind", "lead"),
-    ]);
-
-  const rows = (pipeline ?? []) as PipelineValueRow[];
-  const conv = (conversion ?? null) as ConversionRow | null;
+  const { leadCount, conversion: conv, pipeline: rows } = await loadDashboard();
 
   const pipelineValue = rows.reduce((sum, r) => sum + (r.open_value_pennies ?? 0), 0);
   const openDeals = rows.reduce((sum, r) => sum + (r.open_deals ?? 0), 0);

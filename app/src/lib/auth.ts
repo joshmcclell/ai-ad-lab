@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { IS_DEMO, demoUser } from "@/lib/demo";
 
 // Resolves the signed-in user and their FlowBase users-row (role + tenant).
 // RLS lets a user read their own row; a platform admin can read all rows.
 export async function getCurrentUser() {
+  if (IS_DEMO) {
+    return {
+      authUser: { id: demoUser.id, email: demoUser.email } as { id: string; email: string },
+      profile: demoUser,
+    };
+  }
   const supabase = createClient();
   const {
     data: { user },

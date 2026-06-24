@@ -45,14 +45,16 @@ psql "$DATABASE_URL" -f db/policies.sql    # tenant isolation via RLS
 db/test/run-tests.sh                       # optional: verify it all (green)
 ```
 
-Then run the app:
+Or just **see the app right now** with no database (demo mode, sample data, no login):
 
 ```bash
 cd app
-cp .env.example .env.local      # Supabase + PayPal credentials
 npm install
 npm run dev                      # http://localhost:3000
 ```
+
+To run it against a real backend instead, copy `app/.env.example` to
+`app/.env.local` and fill in your Supabase + PayPal values first.
 
 See `app/README.md` for the application details and `docs/06-setup-opensource.md`
 for the full deployment walkthrough. Prefer no servers? Start with
