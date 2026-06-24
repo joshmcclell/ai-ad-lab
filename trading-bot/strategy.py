@@ -5,7 +5,7 @@ The rule-based decision engine. Given a DataFrame of recent 1-minute candles
 (with indicators attached) it returns a Signal describing whether to go long,
 short, or stand aside, plus the stop-loss / take-profit prices.
 
-All rules are explicit and transparent — there is no machine learning here.
+All rules are explicit and transparent - there is no machine learning here.
 The same function is used by both the live bot and the backtester so the
 two can never drift apart.
 """

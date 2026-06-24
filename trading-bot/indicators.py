@@ -5,7 +5,7 @@ All technical indicators and candle-pattern checks used by the strategy.
 
 The maths is kept fully transparent (no black boxes). We use `pandas-ta` for
 the standard indicators where available and fall back to clean, well-documented
-manual implementations otherwise — so the bot still works if pandas-ta cannot
+manual implementations otherwise - so the bot still works if pandas-ta cannot
 be installed in your environment.
 
 Every function takes a pandas DataFrame with the columns:

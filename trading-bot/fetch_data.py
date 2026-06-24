@@ -8,11 +8,11 @@ Output CSV columns:  time, open, high, low, close, tick_volume   (time in UTC)
 
 Three sources
 -------------
-1. Synthetic (works offline, no internet — great for testing the pipeline now):
+1. Synthetic (works offline, no internet - great for testing the pipeline now):
        python fetch_data.py --synthetic --days 5 --out data/xau_sample.csv
 
 2. Yahoo Finance via yfinance (free, no account; uses gold FUTURES GC=F as a
-   close proxy for spot XAUUSD — fine for pipeline/strategy testing, and limited
+   close proxy for spot XAUUSD - fine for pipeline/strategy testing, and limited
    by Yahoo to ~the last 7 days of 1m bars):
        pip install yfinance
        python fetch_data.py --yahoo --out data/gold_1m.csv

@@ -2,8 +2,8 @@
 selftest.py
 ===========
 Pure-Python sanity checks that run WITHOUT MetaTrader5 or a terminal. They
-prove the core logic — lot sizing (incl. the 0.05 cap and balance flexibility),
-indicators and the strategy signal generator — behaves as specified.
+prove the core logic - lot sizing (incl. the 0.05 cap and balance flexibility),
+indicators and the strategy signal generator - behaves as specified.
 
 Run:  python selftest.py
 """
@@ -98,7 +98,7 @@ def test_strategy_emits_long_in_uptrend():
         assert sig.direction in (Direction.LONG, Direction.SHORT)
         print(f"ok  strategy produced {sig.direction.value} with correct 1:1.5 R:R")
     else:
-        print(f"ok  strategy produced no trade ({sig.reason}) — still valid")
+        print(f"ok  strategy produced no trade ({sig.reason}) - still valid")
 
 
 if __name__ == "__main__":

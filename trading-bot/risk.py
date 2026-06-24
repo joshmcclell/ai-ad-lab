@@ -3,7 +3,7 @@ risk.py
 =======
 Money management: position sizing and the daily-loss circuit breaker.
 
-LOT SIZING — how it works and how it stays <= 0.05
+LOT SIZING - how it works and how it stays <= 0.05
 --------------------------------------------------
 1. Money at risk  = balance * (risk_per_trade_pct / 100).
        e.g. $1,000 balance @ 1%  ->  risk $10 per trade.
@@ -25,7 +25,7 @@ LOT SIZING — how it works and how it stays <= 0.05
    No balance, however large, can push the size past 0.05.
 
 6. If the risk-correct lot is below the broker minimum (0.01), the trade is
-   skipped rather than silently over-risking — UNLESS you opt into trading the
+   skipped rather than silently over-risking - UNLESS you opt into trading the
    minimum lot (see `allow_min_lot_when_undersized`).
 """
 
@@ -92,7 +92,7 @@ def calculate_lot_size(
     # Floor to the broker step so realised risk <= target risk.
     lot = _round_down_to_step(raw_lot, risk_cfg.lot_step)
 
-    # Hard ceiling — the 0.05 rule. This is applied unconditionally.
+    # Hard ceiling - the 0.05 rule. This is applied unconditionally.
     capped = False
     if lot > risk_cfg.max_lot:
         lot = risk_cfg.max_lot

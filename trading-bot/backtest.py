@@ -18,7 +18,7 @@ Modelling choices (kept conservative and explicit)
 --------------------------------------------------
 * Entry at the *next* bar's open after a signal closes (no look-ahead).
 * Each bar after entry is checked for SL/TP using its high/low. If both the
-  SL and TP fall inside the same bar we assume the WORSE outcome (SL first) —
+  SL and TP fall inside the same bar we assume the WORSE outcome (SL first) -
   a pessimistic, honest assumption for a scalper.
 * A configurable spread + slippage (in price) is applied to entries/exits.
 * Position sizing uses the same risk module (max lot 0.05 enforced).

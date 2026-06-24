@@ -4,7 +4,7 @@ config.py
 Single source of truth for every tunable parameter in the XAU/USD scalping bot.
 
 Nothing in the rest of the code base hard-codes a number that a trader might
-reasonably want to change — it all lives here. Edit this file (or, for the
+reasonably want to change - it all lives here. Edit this file (or, for the
 sensitive credentials, the `.env` file) and restart the bot.
 
 Credentials are read from environment variables (loaded from a local `.env`
@@ -29,7 +29,7 @@ load_dotenv()
 # --------------------------------------------------------------------------- #
 @dataclass
 class BrokerConfig:
-    # IC Markets MT5 login credentials — set these in your .env file.
+    # IC Markets MT5 login credentials - set these in your .env file.
     login: int = int(os.getenv("MT5_LOGIN", "0") or "0")
     password: str = os.getenv("MT5_PASSWORD", "")
 
@@ -37,7 +37,7 @@ class BrokerConfig:
     #   Demo  : "ICMarketsSC-Demo"   or  "ICMarkets-Demo"
     #   Live  : "ICMarketsSC-Live"   or  "ICMarketsSC-Live01" / "...-Live02"
     # The exact string is shown in MT5 under  File -> Login to Trade Account.
-    # ALWAYS copy it from your own terminal — it varies per entity/region.
+    # ALWAYS copy it from your own terminal - it varies per entity/region.
     server: str = os.getenv("MT5_SERVER", "ICMarketsSC-Demo")
 
     # Optional: full path to terminal64.exe. Leave blank to let the
@@ -106,7 +106,7 @@ class RiskConfig:
     max_daily_loss_pct: float = 2.0    # stop trading after -2% on the day
     max_open_trades: int = 1           # only ever one position open
 
-    # Lot constraints. MAX_LOT is a hard ceiling — the sizing logic clamps to
+    # Lot constraints. MAX_LOT is a hard ceiling - the sizing logic clamps to
     # it no matter how large the balance is. (Requirement: never exceed 0.05.)
     min_lot: float = 0.01
     max_lot: float = 0.05
@@ -131,7 +131,7 @@ class SessionConfig:
     # Trade around the clock? Set TRADE_24H=true in .env to ignore the
     # 08:00-16:00 window and let the bot trade at any hour. Default (false)
     # keeps the London-session filter on. NB: spreads widen outside
-    # London/NY hours, so off-hours scalping costs more — the ATR filter still
+    # London/NY hours, so off-hours scalping costs more - the ATR filter still
     # blocks the dead, low-volatility minutes either way.
     enforce_session: bool = (
         os.getenv("TRADE_24H", "false").strip().lower()
@@ -141,7 +141,7 @@ class SessionConfig:
     # event. Populate `news_events` with known high-impact releases (NFP, CPI,
     # FOMC, etc.) as timezone-aware datetimes, or wire in a calendar feed.
     news_buffer_minutes: int = 15
-    # list[datetime] — left empty by default; see README "News rule".
+    # list[datetime] - left empty by default; see README "News rule".
     news_events: list = field(default_factory=list)
 
 

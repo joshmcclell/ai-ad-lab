@@ -13,7 +13,7 @@ Responsibilities:
     and margin problems instead of failing silently
 
 The MetaTrader5 package only runs on Windows (or Wine). If it is not installed
-this module still imports — the methods raise a clear RuntimeError so the rest
+this module still imports - the methods raise a clear RuntimeError so the rest
 of the code (e.g. the backtester) can be used without a terminal.
 """
 
@@ -124,7 +124,7 @@ class MT5Client:
         self._connected = True
         info = self.account_info()
         self.log.info(
-            "Connected to MT5 — account %s on %s | balance %.2f %s | %s",
+            "Connected to MT5 - account %s on %s | balance %.2f %s | %s",
             info.login, info.server, info.balance, info.currency,
             "DEMO" if info.is_demo else "LIVE",
         )
@@ -154,7 +154,7 @@ class MT5Client:
                 raise MT5Error(f"Could not add symbol '{name}' to Market Watch.")
 
     def list_symbols(self, contains: str = "XAU") -> list[str]:
-        """Diagnostic helper — list tradable symbols matching a substring."""
+        """Diagnostic helper - list tradable symbols matching a substring."""
         if not _HAS_MT5:
             raise MT5Error("MetaTrader5 not available.")
         symbols = mt5.symbols_get()
@@ -184,7 +184,7 @@ class MT5Client:
     def account_info(self) -> AccountInfo:
         a = mt5.account_info()
         if a is None:
-            raise MT5Error("account_info() returned None — not logged in?")
+            raise MT5Error("account_info() returned None - not logged in?")
         is_demo = (getattr(a, "trade_mode", 0) == getattr(mt5,
                    "ACCOUNT_TRADE_MODE_DEMO", 0))
         return AccountInfo(
@@ -264,7 +264,7 @@ class MT5Client:
         tp = round(tp, spec.digits)
 
         if not self.check_margin(direction_is_long, lot, price):
-            raise MT5Error("Margin check failed — order not sent.")
+            raise MT5Error("Margin check failed - order not sent.")
 
         request = {
             "action": mt5.TRADE_ACTION_DEAL,

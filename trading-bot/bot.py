@@ -12,7 +12,7 @@ Run:
 
 SAFETY MODEL
 ------------
-* DEMO_MODE=true (default) makes the bot REFUSE to trade a live account — it
+* DEMO_MODE=true (default) makes the bot REFUSE to trade a live account - it
   exits if MT5 reports the connected account is not a demo.
 * `--live` flips DEMO_MODE off for this run, but the bot still prints a clear
   LIVE banner and only trades if you pass it deliberately.
@@ -70,7 +70,7 @@ class ScalpingBot:
             self.client.disconnect()
             return
         if not info.is_demo:
-            self.log.warning("=== LIVE ACCOUNT — REAL MONEY AT RISK ===")
+            self.log.warning("=== LIVE ACCOUNT - REAL MONEY AT RISK ===")
 
         self.guard.reset(info.balance)
         mode = "DEMO" if info.is_demo else "LIVE"
@@ -128,7 +128,7 @@ class ScalpingBot:
                           self.guard.realised_pnl)
             if not self._daily_block_alerted:
                 self.notifier.send(
-                    f"⛔ Daily loss limit hit ({self.guard.realised_pnl:.2f}). "
+                    f"\u26d4 Daily loss limit hit ({self.guard.realised_pnl:.2f}). "
                     f"No new trades until tomorrow.")
                 self._daily_block_alerted = True
             return
@@ -176,7 +176,7 @@ class ScalpingBot:
                 self.s.risk, comment="xauusd-scalper")
         except MT5Error as e:
             self.log.error("Entry failed: %s", e)
-            self.notifier.send(f"⚠️ Entry failed ({sig.direction.value}): {e}")
+            self.notifier.send(f"\u26a0\ufe0f Entry failed ({sig.direction.value}): {e}")
             return
 
         self.notifier.send(
@@ -204,7 +204,7 @@ class ScalpingBot:
     # Exit detection / logging                                            #
     # ------------------------------------------------------------------ #
     def _reconcile_open_position(self) -> None:
-        """If our tracked position is no longer open, it hit TP/SL — log it."""
+        """If our tracked position is no longer open, it hit TP/SL - log it."""
         if self._open_record is None:
             return
         positions = self.client.open_positions()
@@ -226,7 +226,7 @@ class ScalpingBot:
         self.guard.register_closed_trade(pnl)
         self.log.info("Trade closed: %s %s lot=%.2f pnl=%.2f -> balance %.2f",
                       rec.direction, rec.result, rec.lot, pnl, info.balance)
-        emoji = "✅" if rec.result == "WIN" else "❌"
+        emoji = "\u2705" if rec.result == "WIN" else "\u274c"
         self.notifier.send(
             f"{emoji} CLOSED {rec.direction} {self.s.symbol.name} {rec.result}\n"
             f"P/L: {pnl:.2f} {info.currency}\n"
@@ -284,8 +284,8 @@ def main() -> None:
 
     if args.test_alert:
         ok = bot.notifier.send_blocking(
-            "✅ Test alert from your XAU/USD scalper — notifications are working!")
-        print("Test alert sent." if ok else "Test alert failed — check the log "
+            "\u2705 Test alert from your XAU/USD scalper - notifications are working!")
+        print("Test alert sent." if ok else "Test alert failed - check the log "
               "above and your .env (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ALERTS).")
         return
 

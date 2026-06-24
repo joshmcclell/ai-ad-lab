@@ -1,7 +1,7 @@
 """
 alerts.py
 =========
-Push notifications for the bot via **Telegram** — free, instant, and works on
+Push notifications for the bot via **Telegram** - free, instant, and works on
 your phone and Chromebook. Zero extra Python packages (uses the standard
 library), so it installs nowhere and can't break the trading loop: every send
 runs in a background thread and swallows its own errors.
@@ -66,7 +66,7 @@ class Notifier:
                 if not ok:
                     self.log.warning("Telegram sendMessage returned ok=false.")
                 return ok
-        except Exception as e:  # network/SSL/timeout — never break trading
+        except Exception as e:  # network/SSL/timeout - never break trading
             self.log.warning("Telegram alert failed: %s", e)
             return False
 
@@ -101,6 +101,6 @@ def print_chat_ids(token: str) -> None:
               "(e.g. 'hi') first, then run this again.")
         return
 
-    print("Found these chat IDs — put the right one in .env as TELEGRAM_CHAT_ID:")
+    print("Found these chat IDs - put the right one in .env as TELEGRAM_CHAT_ID:")
     for cid, name in seen.items():
         print(f"   CHAT_ID = {cid}   ({name})")
