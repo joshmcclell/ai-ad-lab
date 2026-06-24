@@ -91,7 +91,7 @@ class StrategyConfig:
 
     # --- Risk / exit -------------------------------------------------------
     sl_atr_multiplier: float = 1.2     # stop-loss distance = 1.2 x ATR
-    risk_reward_ratio: float = 5.0     # take-profit = 5 x risk (1:5)
+    risk_reward_ratio: float = 2.0     # take-profit = 2 x risk (2:1 reward:risk)
 
     # How many of the most recent closed candles to pull for indicator calc.
     history_bars: int = 300
