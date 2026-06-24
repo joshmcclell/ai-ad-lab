@@ -21,12 +21,21 @@ from typing import Optional
 def get_logger(name: str = "scalper", level: str = "INFO") -> logging.Logger:
     logger = logging.getLogger(name)
     if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
-                              datefmt="%Y-%m-%d %H:%M:%S")
-        )
-        logger.addHandler(handler)
+        fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s",
+                                datefmt="%Y-%m-%d %H:%M:%S")
+        # Console output.
+        sh = logging.StreamHandler()
+        sh.setFormatter(fmt)
+        logger.addHandler(sh)
+        # Persistent file output: every event (incl. each trade taken) is
+        # appended to logs/bot.log so nothing is lost when the terminal closes.
+        try:
+            os.makedirs("logs", exist_ok=True)
+            fh = logging.FileHandler(os.path.join("logs", "bot.log"))
+            fh.setFormatter(fmt)
+            logger.addHandler(fh)
+        except Exception:
+            pass  # never let logging break trading
     logger.setLevel(getattr(logging, level.upper(), logging.INFO))
     return logger
 
