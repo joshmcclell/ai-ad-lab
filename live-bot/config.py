@@ -73,35 +73,35 @@ class StrategyConfig:
     ema_fast_period: int = 20
     ema_slow_period: int = 50
 
-    # --- Momentum filter: RSI ----------------------------------------------
+    # --- Momentum filter: RSI(7) -- mean-reversion pullback bands -----------
     rsi_period: int = 7
-    rsi_long_min: float = 40.0   # long only if RSI above this ...
-    rsi_long_max: float = 70.0   # ... and below this (avoid overbought)
-    rsi_short_min: float = 30.0  # short only if RSI above this (avoid oversold) ...
-    rsi_short_max: float = 60.0  # ... and below this
+    rsi_long_min: float = 35.0   # LONG only when RSI is in a pullback dip ...
+    rsi_long_max: float = 48.0   # ... 35-48 (correction, not oversold)
+    rsi_short_min: float = 52.0  # SHORT only when RSI is in a pullback rally ...
+    rsi_short_max: float = 65.0  # ... 52-65 (correction, not overbought)
 
-    # --- Volatility filter: ATR --------------------------------------------
+    # --- Volatility filter: ATR(5) -----------------------------------------
     atr_period: int = 5
-    atr_min: float = 0.15        # skip entries when ATR (in price) < this
+    atr_min: float = 0.12        # skip entries when ATR (in price) < this
 
-    # --- Candle confirmation -----------------------------------------------
-    # Require an engulfing candle or a pin bar in the trade direction on the
-    # signal candle. Set to False to trade on the EMA/RSI/ATR stack alone.
-    require_candle_confirmation: bool = True
+    # --- Candle / pullback shape -------------------------------------------
+    # "No large wick down/up": reject the signal candle if the wick AGAINST the
+    # trade is bigger than this multiple of the body (a long opposing wick means
+    # the level was rejected). Lower = stricter.
+    max_wick_to_body: float = 1.0
 
-    # --- Risk / exit -------------------------------------------------------
-    # HIGH WIN-RATE preset: a CLOSE take-profit (TP < stop) is hit often, and a
-    # WIDER stop gives trades room so fewer get stopped out early. This biases
-    # toward a high win rate - but each loss is bigger than each win, so it only
-    # makes money if the win rate stays high AND the spread filter keeps costs
-    # down. Tune risk_reward_ratio DOWN to raise the win rate (and vice versa).
-    sl_atr_multiplier: float = 1.5     # stop-loss distance = 1.5 x ATR (wider)
-    risk_reward_ratio: float = 0.4     # take-profit = 0.4 x stop (~70%+ win bias)
+    # --- Risk / exit -- MEAN REVERSION SCALPING, 1:1 -----------------------
+    # Stop and target are BOTH 1.0 x ATR (1:1 reward-to-risk). Hard SL/TP are
+    # attached to the order at entry, so the broker manages the exit even if the
+    # bot/Wine drops. 1:1 is chosen for a high hit-rate mean-reversion bounce.
+    sl_atr_multiplier: float = 1.0     # stop-loss distance = 1.0 x ATR
+    risk_reward_ratio: float = 1.0     # take-profit = 1.0 x stop (1:1)
 
-    # Spread filter (LIVE only): skip a trade when the current spread is more
-    # than this fraction of the take-profit distance. Essential for close-TP
-    # setups, or trading costs quietly eat every small win. 0 = filter off.
-    max_spread_frac_of_tp: float = 0.33
+    # Spread filter (LIVE only): skip a trade when the broker spread exceeds this
+    # many POINTS. NOTE: for IC Markets XAUUSD 1 point = 0.01, and raw gold
+    # spread is typically ~15-30 points - so the spec's 2.0 will likely block
+    # every trade. Override in .env with MAX_SPREAD_POINTS=25 if nothing fires.
+    max_spread_points: float = float(os.getenv("MAX_SPREAD_POINTS", "2.0") or "2.0")
 
     # How many of the most recent closed candles to pull for indicator calc.
     history_bars: int = 300
@@ -130,12 +130,11 @@ class RiskConfig:
     allow_min_lot: bool = (os.getenv("ALLOW_MIN_LOT", "false").strip().lower()
                            in ("1", "true", "yes", "on"))
 
-    # FIXED-LOT OVERRIDE. Set FIXED_LOT=0.10 in .env to trade exactly that size
-    # on EVERY trade, bypassing risk-based sizing AND the 0.05 soft cap (still
-    # clamped to the broker's own min/max volume). 0 = disabled (risk-based).
-    # WARNING: fixed lots make per-trade risk swing with volatility; on a small
-    # balance a fixed 0.10 can risk ~10% per trade and bypass the daily stop.
-    fixed_lot: float = float(os.getenv("FIXED_LOT", "0") or "0")
+    # FIXED LOT - THIS STRATEGY USES EXACTLY 0.05 ON EVERY TRADE.
+    # Every order is sent with volume = fixed_lot, no dynamic sizing (still
+    # clamped to the broker's own min/max volume so the order is valid).
+    # Override in .env with FIXED_LOT=... if you ever want a different size.
+    fixed_lot: float = float(os.getenv("FIXED_LOT", "0.05") or "0.05")
 
     # Order execution tolerances.
     deviation_points: int = 20         # max slippage (in points) we accept

@@ -35,7 +35,7 @@ import pandas as pd
 
 from config import SETTINGS
 from indicators import add_indicators
-from risk import DailyLossGuard, calculate_lot_size
+from risk import DailyLossGuard, calculate_lot_size, fixed_lot_size
 from strategy import Direction, evaluate
 from trade_logger import TradeLogger, TradeRecord, get_logger
 
@@ -138,9 +138,16 @@ def run_backtest(df: pd.DataFrame, params: BacktestParams,
 
         # --- Size & "enter" at next bar open (+spread/slippage) ------------
         sl_distance = abs(sig.entry - sig.stop_loss)
-        sizing = calculate_lot_size(
-            balance=balance, sl_distance_price=sl_distance, risk_cfg=s.risk,
-            contract_size=s.symbol.contract_size)
+        if s.risk.fixed_lot > 0:
+            # Match live behaviour: trade the exact fixed lot every time.
+            sizing = fixed_lot_size(
+                s.risk.fixed_lot, sl_distance,
+                contract_size=s.symbol.contract_size,
+                volume_min=s.risk.min_lot, lot_step=s.risk.lot_step)
+        else:
+            sizing = calculate_lot_size(
+                balance=balance, sl_distance_price=sl_distance, risk_cfg=s.risk,
+                contract_size=s.symbol.contract_size)
         if sizing.lot <= 0:
             continue
 

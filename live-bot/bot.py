@@ -152,19 +152,23 @@ class ScalpingBot:
     def _enter(self, sig, info) -> None:
         sl_distance = abs(sig.entry - sig.stop_loss)
 
-        # Spread filter: don't take a trade whose small take-profit would be
-        # eaten by the current spread (protects the high-win-rate / close-TP setup).
-        frac = getattr(self.s.strategy, "max_spread_frac_of_tp", 0.0)
-        if frac and frac > 0:
-            tp_distance = sl_distance * self.s.strategy.risk_reward_ratio
+        # Spread filter (POINTS): skip the trade if the broker spread is too
+        # wide. spread_points = (ask - bid) / point.
+        max_sp = getattr(self.s.strategy, "max_spread_points", 0.0)
+        if max_sp and max_sp > 0:
+            point = self._spec.point or 0.01
             try:
                 tick = self.client.current_tick()
-                spread = float(tick.ask - tick.bid)
+                spread_price = float(tick.ask - tick.bid)
             except Exception:
-                spread = 0.0
-            if tp_distance > 0 and spread > frac * tp_distance:
-                self.log.info("Skip %s: spread %.3f > %.0f%% of TP %.3f",
-                              sig.direction.value, spread, frac * 100, tp_distance)
+                spread_price = 0.0
+            spread_points = spread_price / point if point else 0.0
+            if spread_points > max_sp:
+                self.log.info("Skip %s: spread %.1f pts > max %.1f pts",
+                              sig.direction.value, spread_points, max_sp)
+                self.notifier.send(
+                    f"⚠️ Spread too high ({spread_points:.1f} pts > "
+                    f"{max_sp:.1f}) - {sig.direction.value} skipped.")
                 return
 
         if self.s.risk.fixed_lot > 0:
