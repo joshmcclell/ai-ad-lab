@@ -1,0 +1,17 @@
+# Secrets — never commit
+.env
+
+# Logs
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Backtest output
+backtest_results/
+*.csv
