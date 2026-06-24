@@ -90,8 +90,18 @@ class StrategyConfig:
     require_candle_confirmation: bool = True
 
     # --- Risk / exit -------------------------------------------------------
-    sl_atr_multiplier: float = 1.2     # stop-loss distance = 1.2 x ATR
-    risk_reward_ratio: float = 2.0     # take-profit = 2 x risk (2:1 reward:risk)
+    # HIGH WIN-RATE preset: a CLOSE take-profit (TP < stop) is hit often, and a
+    # WIDER stop gives trades room so fewer get stopped out early. This biases
+    # toward a high win rate - but each loss is bigger than each win, so it only
+    # makes money if the win rate stays high AND the spread filter keeps costs
+    # down. Tune risk_reward_ratio DOWN to raise the win rate (and vice versa).
+    sl_atr_multiplier: float = 1.5     # stop-loss distance = 1.5 x ATR (wider)
+    risk_reward_ratio: float = 0.4     # take-profit = 0.4 x stop (~70%+ win bias)
+
+    # Spread filter (LIVE only): skip a trade when the current spread is more
+    # than this fraction of the take-profit distance. Essential for close-TP
+    # setups, or trading costs quietly eat every small win. 0 = filter off.
+    max_spread_frac_of_tp: float = 0.33
 
     # How many of the most recent closed candles to pull for indicator calc.
     history_bars: int = 300

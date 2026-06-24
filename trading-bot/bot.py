@@ -151,6 +151,22 @@ class ScalpingBot:
     # ------------------------------------------------------------------ #
     def _enter(self, sig, info) -> None:
         sl_distance = abs(sig.entry - sig.stop_loss)
+
+        # Spread filter: don't take a trade whose small take-profit would be
+        # eaten by the current spread (protects the high-win-rate / close-TP setup).
+        frac = getattr(self.s.strategy, "max_spread_frac_of_tp", 0.0)
+        if frac and frac > 0:
+            tp_distance = sl_distance * self.s.strategy.risk_reward_ratio
+            try:
+                tick = self.client.current_tick()
+                spread = float(tick.ask - tick.bid)
+            except Exception:
+                spread = 0.0
+            if tp_distance > 0 and spread > frac * tp_distance:
+                self.log.info("Skip %s: spread %.3f > %.0f%% of TP %.3f",
+                              sig.direction.value, spread, frac * 100, tp_distance)
+                return
+
         if self.s.risk.fixed_lot > 0:
             # Fixed-lot mode: trade an exact size every time (bypasses
             # risk-based sizing and the 0.05 soft cap).
