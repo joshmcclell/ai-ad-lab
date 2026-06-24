@@ -114,13 +114,16 @@ def convert_csv(path: str) -> pd.DataFrame:
 
     tcol = find(_TIME_ALIASES)
     if tcol is None:
-        raise SystemExit(f"Could not find a time column in {path}. "
-                         f"Columns were: {list(raw.columns)}")
+        # Dukascopy labels the time column with the timezone (e.g. 'Gmt time',
+        # 'Etc/UTC'). When no known alias matches, assume the FIRST column is
+        # the timestamp - true for Dukascopy and MT5 CSV exports.
+        tcol = raw.columns[0]
+        print(f"No standard time column found; assuming the first column "
+              f"'{tcol}' is the timestamp.")
 
     out = pd.DataFrame()
-    # Dukascopy uses 'dd.mm.yyyy HH:MM:SS.000'; let pandas infer, force UTC.
-    out["time"] = pd.to_datetime(raw[tcol], utc=True, errors="coerce",
-                                 dayfirst=True)
+    # Dukascopy/MT5 timestamps (e.g. '2026.06.24 23:59:00'); let pandas infer.
+    out["time"] = pd.to_datetime(raw[tcol], utc=True, errors="coerce")
     for std, aliases in _OHLC_ALIASES.items():
         col = find(aliases)
         if col is None:
