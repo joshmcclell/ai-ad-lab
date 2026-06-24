@@ -65,6 +65,19 @@ def calculate_lot(balance: float, entry: float, stop_loss: float, symbol_info) -
     return LotResult(volume, True, "ok")
 
 
+def fixed_lot(volume: float, symbol_info) -> LotResult:
+    """Clamp a user-specified fixed lot size to the broker's min/step/max."""
+    vmin = symbol_info.volume_min
+    vmax = symbol_info.volume_max
+    vstep = symbol_info.volume_step or 0.01
+
+    stepped = round((round(volume / vstep)) * vstep, 8)
+    clamped = max(vmin, min(vmax, stepped))
+    if clamped != volume:
+        log.info("Fixed lot %.2f adjusted to broker limits -> %.2f", volume, clamped)
+    return LotResult(clamped, True, f"fixed lot {clamped}")
+
+
 def margin_ok(side: str, volume: float, entry: float, symbol: str, free_margin: float) -> bool:
     """Confirm the account has enough free margin for the order (respects leverage)."""
     import MetaTrader5 as mt5  # lazy: offline backtesting needs no MT5 install

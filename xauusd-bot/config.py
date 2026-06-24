@@ -66,6 +66,8 @@ class Config:
     risk_per_trade: float = field(default_factory=lambda: _float("RISK_PER_TRADE", 0.01))
     risk_reward: float = field(default_factory=lambda: _float("RISK_REWARD", 2.0))
     daily_loss_limit: float = field(default_factory=lambda: _float("DAILY_LOSS_LIMIT", 0.03))
+    # If > 0, use this exact lot size on every trade and IGNORE risk-based sizing.
+    fixed_lot_size: float = field(default_factory=lambda: _float("FIXED_LOT_SIZE", 0.0))
 
     # --- Stops ---
     sl_method: str = field(default_factory=lambda: _str("SL_METHOD", "atr").lower())

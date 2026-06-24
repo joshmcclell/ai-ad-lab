@@ -22,7 +22,7 @@ from config import CONFIG
 from indicators import add_indicators
 from logger import get_logger
 from mt5_client import MT5Client
-from risk import DailyLossGuard, calculate_lot, margin_ok
+from risk import DailyLossGuard, calculate_lot, fixed_lot, margin_ok
 from strategy import LONG, SHORT, Signal, evaluate
 import notifier
 
@@ -86,6 +86,12 @@ class TradingBot:
             )
         if CONFIG.daily_loss_limit <= 0:
             log.warning("DAILY LOSS LIMIT DISABLED — the bot will not pause after losing days.")
+        if CONFIG.fixed_lot_size > 0:
+            log.warning(
+                "FIXED LOT MODE: every trade uses %.2f lots, risk-based sizing is OFF. "
+                "Your risk per trade depends entirely on the stop distance.",
+                CONFIG.fixed_lot_size,
+            )
 
         while True:
             try:
@@ -172,7 +178,10 @@ class TradingBot:
             log.error("No symbol info — cannot size trade.")
             return
 
-        lot = calculate_lot(balance, signal.entry, signal.stop_loss, info)
+        if CONFIG.fixed_lot_size > 0:
+            lot = fixed_lot(CONFIG.fixed_lot_size, info)
+        else:
+            lot = calculate_lot(balance, signal.entry, signal.stop_loss, info)
         if not lot.ok:
             log.warning("Trade skipped: %s", lot.reason)
             return
