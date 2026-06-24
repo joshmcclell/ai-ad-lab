@@ -10,6 +10,10 @@ lots**.
 > education and testing. Run it on a **demo account** until you fully understand
 > its behaviour. Past backtest results do not predict future returns.
 
+> 💻 **On a Chromebook / no Windows?** Live trading needs the Windows MT5
+> terminal, but you can run the self-tests and backtester for free on ChromeOS's
+> Linux container. See **[CHROMEBOOK.md](CHROMEBOOK.md)**.
+
 ---
 
 ## 1. What's in the box
