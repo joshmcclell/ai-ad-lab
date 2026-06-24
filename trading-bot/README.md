@@ -29,6 +29,7 @@ lots**.
 | `mt5_client.py` | Defensive wrapper over the `MetaTrader5` API: connect, fetch data, read specs, place/close orders, margin checks. |
 | `trade_logger.py` | Append-only **CSV trade log** + console logging. |
 | `bot.py` | The **live / demo loop** with a hard demo-mode safety gate. |
+| `alerts.py` | Optional **Telegram trade alerts** (open/close/error). See [ALERTS.md](ALERTS.md). |
 | `backtest.py` | **Backtester** over historical 1m data (from MT5 or a CSV). |
 | `selftest.py` | Offline checks (lot cap, daily-loss guard, R:R) — no terminal needed. |
 

@@ -170,6 +170,18 @@ class RuntimeConfig:
 
 
 # --------------------------------------------------------------------------- #
+# 7. ALERTS (Telegram push notifications)                                      #
+# --------------------------------------------------------------------------- #
+@dataclass
+class AlertConfig:
+    # Master switch. Set ALERTS=true in .env once the two values below are set.
+    enabled: bool = (os.getenv("ALERTS", "false").strip().lower()
+                     in ("1", "true", "yes", "on"))
+    telegram_token: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    telegram_chat_id: str = os.getenv("TELEGRAM_CHAT_ID", "")
+
+
+# --------------------------------------------------------------------------- #
 # Convenience: one object that bundles everything together.                    #
 # --------------------------------------------------------------------------- #
 @dataclass
@@ -180,6 +192,7 @@ class Settings:
     risk: RiskConfig = field(default_factory=RiskConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    alerts: AlertConfig = field(default_factory=AlertConfig)
 
     @property
     def tzinfo(self) -> ZoneInfo:

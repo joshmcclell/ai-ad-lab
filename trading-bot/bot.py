@@ -29,6 +29,7 @@ from datetime import datetime
 
 import pandas as pd
 
+from alerts import Notifier, print_chat_ids
 from config import SETTINGS
 from indicators import add_indicators
 from mt5_client import MT5Client, MT5Error
@@ -44,9 +45,11 @@ class ScalpingBot:
         self.client = MT5Client(settings.broker, settings.symbol, self.log)
         self.trade_log = TradeLogger(settings.runtime.trade_log_csv)
         self.guard = DailyLossGuard(settings.risk)
+        self.notifier = Notifier(settings.alerts, self.log)
         self._spec = None
         self._last_bar_time = None        # de-dupe: one decision per closed bar
         self._open_record: TradeRecord | None = None
+        self._daily_block_alerted = False  # avoid spamming the daily-loss alert
 
     # ------------------------------------------------------------------ #
     # Startup                                                             #
@@ -70,6 +73,12 @@ class ScalpingBot:
             self.log.warning("=== LIVE ACCOUNT — REAL MONEY AT RISK ===")
 
         self.guard.reset(info.balance)
+        mode = "DEMO" if info.is_demo else "LIVE"
+        self.notifier.send(
+            f"\U0001F916 Scalper started ({mode})\n"
+            f"Account {info.login} on {info.server}\n"
+            f"Balance: {info.balance:.2f} {info.currency}\n"
+            f"Symbol: {self.s.symbol.name}")
 
         try:
             if run_once:
@@ -117,7 +126,13 @@ class ScalpingBot:
         if self.guard.is_blocked(info.balance, now_local.date()):
             self.log.info("Daily loss limit reached (%.2f). No new trades today.",
                           self.guard.realised_pnl)
+            if not self._daily_block_alerted:
+                self.notifier.send(
+                    f"⛔ Daily loss limit hit ({self.guard.realised_pnl:.2f}). "
+                    f"No new trades until tomorrow.")
+                self._daily_block_alerted = True
             return
+        self._daily_block_alerted = False  # reset once a new day clears the block
 
         if len(self.client.open_positions()) >= self.s.risk.max_open_trades:
             return  # already in a trade
@@ -161,7 +176,15 @@ class ScalpingBot:
                 self.s.risk, comment="xauusd-scalper")
         except MT5Error as e:
             self.log.error("Entry failed: %s", e)
+            self.notifier.send(f"⚠️ Entry failed ({sig.direction.value}): {e}")
             return
+
+        self.notifier.send(
+            f"\U0001F7E2 OPEN {sig.direction.value} {self.s.symbol.name}\n"
+            f"Lot: {sizing.lot:.2f}{' (max 0.05 cap)' if sizing.capped_by_max_lot else ''}\n"
+            f"Entry: {result.price:.3f}\n"
+            f"SL: {sig.stop_loss:.3f}   TP: {sig.take_profit:.3f}\n"
+            f"Risk: {sizing.money_at_risk:.2f} {info.currency}")
 
         self._open_record = TradeRecord(
             open_time=utc_now_iso(),
@@ -203,6 +226,11 @@ class ScalpingBot:
         self.guard.register_closed_trade(pnl)
         self.log.info("Trade closed: %s %s lot=%.2f pnl=%.2f -> balance %.2f",
                       rec.direction, rec.result, rec.lot, pnl, info.balance)
+        emoji = "✅" if rec.result == "WIN" else "❌"
+        self.notifier.send(
+            f"{emoji} CLOSED {rec.direction} {self.s.symbol.name} {rec.result}\n"
+            f"P/L: {pnl:.2f} {info.currency}\n"
+            f"Balance: {info.balance:.2f} {info.currency}")
         self._open_record = None
 
     def _lookup_last_deal_profit(self, rec) -> float:
@@ -242,9 +270,24 @@ def main() -> None:
                         help="Evaluate a single time and exit (smoke test).")
     parser.add_argument("--list-symbols", action="store_true",
                         help="List XAU* symbols on the account and exit.")
+    parser.add_argument("--test-alert", action="store_true",
+                        help="Send a test Telegram alert and exit.")
+    parser.add_argument("--telegram-setup", action="store_true",
+                        help="Print your Telegram chat ID(s) and exit.")
     args = parser.parse_args()
 
     bot = ScalpingBot(SETTINGS)
+
+    if args.telegram_setup:
+        print_chat_ids(SETTINGS.alerts.telegram_token)
+        return
+
+    if args.test_alert:
+        ok = bot.notifier.send_blocking(
+            "✅ Test alert from your XAU/USD scalper — notifications are working!")
+        print("Test alert sent." if ok else "Test alert failed — check the log "
+              "above and your .env (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, ALERTS).")
+        return
 
     if args.list_symbols:
         bot.client.connect()
