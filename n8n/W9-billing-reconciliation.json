@@ -1,0 +1,57 @@
+{
+  "name": "FlowBase W9 — Billing Reconciliation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 1 * * *" }] }
+      },
+      "id": "fffffff1-1111-4111-8111-fffffffffff1",
+      "name": "Daily 01:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * from reconcile_billing();",
+        "options": {}
+      },
+      "id": "fffffff2-2222-4222-8222-fffffffffff2",
+      "name": "Reconcile Billing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [520, 300],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key", "value": "={{ $env.BREVO_API_KEY }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"FlowBase CRM\", \"email\": \"hello@flowbasecrm.com\" },\n  \"to\": [{ \"email\": \"{{ $env.OPERATOR_ALERT_EMAIL }}\" }],\n  \"subject\": \"Client flagged past_due: {{ $json.account_id }}\",\n  \"htmlContent\": \"<p>Reconciliation flagged subscription {{ $json.paypal_subscription_id }} (account {{ $json.account_id }}) as past_due — no payment past its next billing date.</p>\"\n}",
+        "options": {}
+      },
+      "id": "fffffff3-3333-4333-8333-fffffffffff3",
+      "name": "Alert Operator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 300]
+    }
+  ],
+  "connections": {
+    "Daily 01:00": { "main": [[{ "node": "Reconcile Billing", "type": "main", "index": 0 }]] },
+    "Reconcile Billing": { "main": [[{ "node": "Alert Operator", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "flowbase" }]
+}

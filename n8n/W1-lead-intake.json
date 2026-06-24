@@ -1,0 +1,116 @@
+{
+  "name": "FlowBase W1 — Lead Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "flowbase-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": "Lead Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "flowbase-lead"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "contacts", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "account_id": "={{ $json.body.account_id }}",
+            "kind": "lead",
+            "first_name": "={{ $json.body.first_name }}",
+            "last_name": "={{ $json.body.last_name }}",
+            "email": "={{ $json.body.email }}",
+            "phone": "={{ $json.body.phone }}",
+            "company": "={{ $json.body.company }}",
+            "source": "={{ $json.body.source || 'Website form' }}",
+            "consent_marketing": "={{ $json.body.consent === true }}",
+            "consent_source": "Website opt-in",
+            "consent_at": "={{ $now.toISO() }}",
+            "lawful_basis": "consent"
+          }
+        }
+      },
+      "id": "22222222-2222-4222-8222-222222222222",
+      "name": "Insert Contact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [520, 300],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "__rl": true, "value": "public", "mode": "list" },
+        "table": { "__rl": true, "value": "tasks", "mode": "list" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "account_id": "={{ $json.account_id }}",
+            "contact_id": "={{ $json.id }}",
+            "title": "=Follow up with {{ $json.first_name }} {{ $json.last_name }}",
+            "due_at": "={{ $now.plus(1, 'days').toISO() }}",
+            "remind_at": "={{ $now.plus(1, 'days').toISO() }}",
+            "status": "open"
+          }
+        }
+      },
+      "id": "33333333-3333-4333-8333-333333333333",
+      "name": "Create Follow-up Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [800, 220],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "api-key", "value": "={{ $env.BREVO_API_KEY }}" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"sender\": { \"name\": \"FlowBase CRM\", \"email\": \"hello@flowbasecrm.com\" },\n  \"to\": [{ \"email\": \"{{ $json.email }}\" }],\n  \"subject\": \"Thanks for getting in touch\",\n  \"htmlContent\": \"<p>Hi {{ $json.first_name }}, thanks for your enquiry — we'll be in touch shortly.</p>\"\n}",
+        "options": {}
+      },
+      "id": "44444444-4444-4444-8444-444444444444",
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 380]
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "Lead Form Webhook": { "main": [[{ "node": "Insert Contact", "type": "main", "index": 0 }]] },
+    "Insert Contact": {
+      "main": [[
+        { "node": "Create Follow-up Task", "type": "main", "index": 0 },
+        { "node": "Send Welcome Email", "type": "main", "index": 0 }
+      ]]
+    },
+    "Create Follow-up Task": { "main": [[{ "node": "Respond OK", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "flowbase" }]
+}

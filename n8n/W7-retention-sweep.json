@@ -1,0 +1,34 @@
+{
+  "name": "FlowBase W7 — Data Retention Sweep",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 2 * * *" }] }
+      },
+      "id": "ddddddd1-1111-4111-8111-ddddddddddd1",
+      "name": "Nightly 02:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * from apply_retention();",
+        "options": {}
+      },
+      "id": "ddddddd2-2222-4222-8222-ddddddddddd2",
+      "name": "Apply Retention",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [520, 300],
+      "credentials": { "postgres": { "id": "REPLACE", "name": "FlowBase Postgres" } }
+    }
+  ],
+  "connections": {
+    "Nightly 02:00": { "main": [[{ "node": "Apply Retention", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "flowbase" }]
+}
