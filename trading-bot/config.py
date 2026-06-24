@@ -128,6 +128,15 @@ class SessionConfig:
     session_start: time = time(8, 0)    # 08:00 local
     session_end: time = time(16, 0)     # 16:00 local
 
+    # Trade around the clock? Set TRADE_24H=true in .env to ignore the
+    # 08:00-16:00 window and let the bot trade at any hour. Default (false)
+    # keeps the London-session filter on. NB: spreads widen outside
+    # London/NY hours, so off-hours scalping costs more — the ATR filter still
+    # blocks the dead, low-volatility minutes either way.
+    enforce_session: bool = (
+        os.getenv("TRADE_24H", "false").strip().lower()
+        not in ("1", "true", "yes", "on"))
+
     # News blackout: skip trading this many minutes before AND after each
     # event. Populate `news_events` with known high-impact releases (NFP, CPI,
     # FOMC, etc.) as timezone-aware datetimes, or wire in a calendar feed.

@@ -99,7 +99,8 @@ def evaluate(
 
     # --- Time / session filter (optional; skipped by the backtester) -------
     if check_time and session_cfg is not None and now_local is not None:
-        if not in_session(now_local, session_cfg):
+        if getattr(session_cfg, "enforce_session", True) \
+                and not in_session(now_local, session_cfg):
             return Signal(Direction.NONE, price, 0, 0, atr_val, "outside session")
         if in_news_blackout(now_local, session_cfg):
             return Signal(Direction.NONE, price, 0, 0, atr_val, "news blackout")
