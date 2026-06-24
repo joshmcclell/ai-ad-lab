@@ -91,7 +91,7 @@ class StrategyConfig:
 
     # --- Risk / exit -------------------------------------------------------
     sl_atr_multiplier: float = 1.2     # stop-loss distance = 1.2 x ATR
-    risk_reward_ratio: float = 1.5     # take-profit = 1.5 x risk (1:1.5)
+    risk_reward_ratio: float = 5.0     # take-profit = 5 x risk (1:5)
 
     # How many of the most recent closed candles to pull for indicator calc.
     history_bars: int = 300
@@ -119,6 +119,13 @@ class RiskConfig:
     # risk_per_trade_pct. The 0.05 ceiling and 2% daily-loss stop still apply.
     allow_min_lot: bool = (os.getenv("ALLOW_MIN_LOT", "false").strip().lower()
                            in ("1", "true", "yes", "on"))
+
+    # FIXED-LOT OVERRIDE. Set FIXED_LOT=0.10 in .env to trade exactly that size
+    # on EVERY trade, bypassing risk-based sizing AND the 0.05 soft cap (still
+    # clamped to the broker's own min/max volume). 0 = disabled (risk-based).
+    # WARNING: fixed lots make per-trade risk swing with volatility; on a small
+    # balance a fixed 0.10 can risk ~10% per trade and bypass the daily stop.
+    fixed_lot: float = float(os.getenv("FIXED_LOT", "0") or "0")
 
     # Order execution tolerances.
     deviation_points: int = 20         # max slippage (in points) we accept

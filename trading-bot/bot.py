@@ -33,7 +33,7 @@ from alerts import Notifier, print_chat_ids
 from config import SETTINGS
 from indicators import add_indicators
 from mt5_client import MT5Client, MT5Error
-from risk import DailyLossGuard, calculate_lot_size
+from risk import DailyLossGuard, calculate_lot_size, fixed_lot_size
 from strategy import Direction, evaluate
 from trade_logger import TradeLogger, TradeRecord, get_logger, utc_now_iso
 
@@ -151,15 +151,32 @@ class ScalpingBot:
     # ------------------------------------------------------------------ #
     def _enter(self, sig, info) -> None:
         sl_distance = abs(sig.entry - sig.stop_loss)
-        sizing = calculate_lot_size(
-            balance=info.balance,
-            sl_distance_price=sl_distance,
-            risk_cfg=self.s.risk,
-            tick_size=self._spec.tick_size,
-            tick_value=self._spec.tick_value,
-            contract_size=self._spec.contract_size,
-            allow_min_lot_when_undersized=self.s.risk.allow_min_lot,
-        )
+        if self.s.risk.fixed_lot > 0:
+            # Fixed-lot mode: trade an exact size every time (bypasses
+            # risk-based sizing and the 0.05 soft cap).
+            sizing = fixed_lot_size(
+                self.s.risk.fixed_lot, sl_distance,
+                tick_size=self._spec.tick_size,
+                tick_value=self._spec.tick_value,
+                contract_size=self._spec.contract_size,
+                volume_min=self._spec.volume_min,
+                volume_max=self._spec.volume_max,
+                lot_step=self._spec.volume_step,
+            )
+            pct = 100.0 * sizing.money_at_risk / info.balance if info.balance else 0
+            self.log.warning("FIXED LOT %.2f -> risking %.2f %s (%.1f%% of "
+                             "balance) this trade.", sizing.lot,
+                             sizing.money_at_risk, info.currency, pct)
+        else:
+            sizing = calculate_lot_size(
+                balance=info.balance,
+                sl_distance_price=sl_distance,
+                risk_cfg=self.s.risk,
+                tick_size=self._spec.tick_size,
+                tick_value=self._spec.tick_value,
+                contract_size=self._spec.contract_size,
+                allow_min_lot_when_undersized=self.s.risk.allow_min_lot,
+            )
         if sizing.lot <= 0:
             self.log.info("Skip %s: %s", sig.direction.value, sizing.skipped_reason)
             return

@@ -128,6 +128,40 @@ def calculate_lot_size(
     )
 
 
+def fixed_lot_size(
+    fixed_lot: float,
+    sl_distance_price: float,
+    *,
+    tick_size: Optional[float] = None,
+    tick_value: Optional[float] = None,
+    contract_size: float = 100.0,
+    volume_min: float = 0.01,
+    volume_max: float = 100.0,
+    lot_step: float = 0.01,
+) -> SizingResult:
+    """
+    Trade an exact fixed lot every time, ignoring risk-based sizing and the
+    0.05 soft cap. The value is still floored to the broker volume step and
+    clamped to the broker's own min/max volume so the order is always valid.
+    money_at_risk is reported as the ACTUAL risk for transparency/logging.
+    """
+    lot = _round_down_to_step(fixed_lot, lot_step)
+    lot = max(volume_min, min(lot, volume_max))
+
+    if tick_size and tick_value and tick_size > 0:
+        loss_per_lot = (sl_distance_price / tick_size) * tick_value
+    else:
+        loss_per_lot = sl_distance_price * contract_size
+
+    return SizingResult(
+        lot=round(lot, 2),
+        money_at_risk=lot * loss_per_lot,   # the real risk, not a target
+        loss_per_lot=loss_per_lot,
+        capped_by_max_lot=False,
+        skipped_reason=None,
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Daily-loss circuit breaker                                                   #
 # --------------------------------------------------------------------------- #
