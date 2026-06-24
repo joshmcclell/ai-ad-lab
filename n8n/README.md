@@ -11,14 +11,15 @@ File**, then set credentials and activate.
 | `W1-lead-intake.json` | New lead → contact + 24h follow-up task + welcome email | Webhook `POST /flowbase-lead` |
 | `W3-task-reminders.json` | Email task owners when a reminder is due | Schedule (every 15 min) |
 | `W7-retention-sweep.json` | Run the GDPR retention sweep (`apply_retention()`) | Schedule (nightly 02:00) |
+| `W9-billing-reconciliation.json` | Flag silently-unpaid clients + alert you | Schedule (daily 01:00) |
 
-W7 just calls the `apply_retention()` DB function — if you're on Supabase you can
-skip n8n for it and use `../db/schedule.sql` (pg_cron) instead. Backups (W8) run
-from `../db/backup.sh` via cron / a GitHub Action / an n8n *Execute Command* node.
+W7 and W9 just call DB functions — on Supabase you can skip n8n for them and use
+`../db/schedule.sql` (pg_cron) instead. Backups (W8) run from `../db/backup.sh`
+via cron / a GitHub Action / an n8n *Execute Command* node.
 
-The remaining workflows (W2, W4, W9) are specified step-by-step in
-`../docs/04-workflows-automation.md` and follow the same shape — add them the
-same way as you need them.
+The rest of the automation is built outside n8n: **W2** (pipeline stage changes)
+is a DB trigger; **W4** (Cal.com calendar sync), **W5/W6** (PayPal billing) are
+signature-verified webhooks in `../app/`. See `../docs/04-workflows-automation.md`.
 
 ## Before they run — required setup
 

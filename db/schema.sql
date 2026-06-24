@@ -249,7 +249,8 @@ create table if not exists calendar_events (
   title        text,
   starts_at    timestamptz,
   ends_at      timestamptz,
-  created_at   timestamptz not null default now()
+  created_at   timestamptz not null default now(),
+  unique (account_id, external_id)                            -- idempotent webhook upserts
 );
 
 -- ----------------------------------------------------------------------------

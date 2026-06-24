@@ -140,3 +140,93 @@ begin
   end loop;
 end;
 $$;
+
+-- on_deal_stage_change(): pipeline automation (workflow W2, docs/04).
+-- Fires when a deal's stage_id changes. Logs the move to the activity timeline
+-- and reflects won/lost stages onto the deal + its contact. BEFORE trigger so it
+-- sets the deal's own columns on NEW directly (no recursive UPDATE). The WHEN
+-- clause scopes it to genuine stage changes, so the won/lost status writes
+-- (which don't touch stage_id) never re-fire it.
+create or replace function on_deal_stage_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare s record;
+begin
+  select name, is_won, is_lost into s from stages where id = new.stage_id;
+
+  insert into activities (account_id, deal_id, contact_id, type, direction, subject, body)
+    values (new.account_id, new.id, new.contact_id, 'note', 'internal',
+            'Stage changed', 'Moved to ' || coalesce(s.name, '?'));
+
+  if s.is_won then
+    new.status := 'won';
+    new.closed_at := now();
+    if new.contact_id is not null then
+      update contacts set kind = 'customer'
+        where id = new.contact_id and kind <> 'customer';
+    end if;
+  elsif s.is_lost then
+    new.status := 'lost';
+    new.closed_at := now();
+  else
+    -- moved back into the active pipeline: reopen.
+    new.status := 'open';
+    new.closed_at := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_deal_stage_change on deals;
+create trigger trg_deal_stage_change
+  before update of stage_id on deals
+  for each row
+  when (old.stage_id is distinct from new.stage_id)
+  execute function on_deal_stage_change();
+
+-- reconcile_billing(): the billing safety net (workflow W9, docs/04).
+-- PayPal webhooks occasionally don't deliver. This flags any active subscription
+-- whose next charge was due more than p_grace_days ago with no recorded payment
+-- as past_due (subscription + account), so a silent failure can't let a
+-- non-paying client keep access. Returns the accounts it flagged. Idempotent.
+create or replace function reconcile_billing(p_grace_days integer default 1)
+returns table(account_id uuid, paypal_subscription_id text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare cutoff timestamptz := now() - make_interval(days => p_grace_days);
+begin
+  return query
+  with stale as (
+    select s.id, s.account_id, s.paypal_subscription_id
+      from subscriptions s
+     where s.status = 'active'
+       and coalesce(s.next_billing_at, s.current_period_end) is not null
+       and coalesce(s.next_billing_at, s.current_period_end) < cutoff
+  ),
+  upd_sub as (
+    update subscriptions set status = 'past_due', updated_at = now()
+     where id in (select stale.id from stale)
+    returning subscriptions.account_id, subscriptions.paypal_subscription_id
+  ),
+  upd_acct as (
+    update accounts set status = 'past_due'
+     where id in (select stale.account_id from stale) and status = 'active'
+    returning id
+  ),
+  logged as (
+    insert into audit_log (account_id, action, entity, changes)
+    select st.account_id, 'billing_past_due', 'subscription',
+           jsonb_build_object('reason', 'no payment past next_billing_at',
+                              'grace_days', p_grace_days)
+      from stale st
+    returning 1
+  )
+  select us.account_id, us.paypal_subscription_id from upd_sub us;
+end;
+$$;

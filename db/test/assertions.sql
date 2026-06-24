@@ -214,4 +214,100 @@ begin
 end $$;
 \echo '   ok'
 
+\echo '== T6: deal stage-change trigger drives pipeline automation (W2) =='
+-- Move the demo deal (currently in New Lead) to the Won stage.
+do $$
+declare won_stage uuid; v record; n int;
+begin
+  select id into won_stage from stages
+    where pipeline_id = '44444444-4444-4444-4444-444444444444' and is_won limit 1;
+
+  update deals set stage_id = won_stage
+    where id = '77777777-7777-7777-7777-777777777777';
+
+  -- Deal marked won + closed.
+  select status, closed_at into v from deals
+    where id = '77777777-7777-7777-7777-777777777777';
+  if v.status <> 'won' or v.closed_at is null then
+    raise exception 'T6a: deal not marked won/closed (status=%)', v.status;
+  end if;
+
+  -- Linked contact promoted to customer.
+  select kind into v from contacts where id = '55555555-5555-5555-5555-555555555555';
+  if v.kind <> 'customer' then
+    raise exception 'T6b: contact not promoted to customer (kind=%)', v.kind;
+  end if;
+
+  -- The move was logged to the activity timeline.
+  select count(*) into n from activities
+    where deal_id = '77777777-7777-7777-7777-777777777777'
+      and subject = 'Stage changed';
+  if n < 1 then raise exception 'T6c: stage change not logged as activity'; end if;
+end $$;
+
+-- Moving back to an open stage reopens the deal (no recursion / status sticks).
+do $$
+declare lead_stage uuid; v record;
+begin
+  select id into lead_stage from stages
+    where pipeline_id = '44444444-4444-4444-4444-444444444444' and name = 'New Lead';
+  update deals set stage_id = lead_stage
+    where id = '77777777-7777-7777-7777-777777777777';
+  select status, closed_at into v from deals
+    where id = '77777777-7777-7777-7777-777777777777';
+  if v.status <> 'open' or v.closed_at is not null then
+    raise exception 'T6d: deal not reopened on move back (status=%)', v.status;
+  end if;
+end $$;
+\echo '   ok'
+
+\echo '== T7: reconcile_billing flags silently-unpaid subscriptions (W9) =='
+-- Stale: active sub whose next charge was due 3 days ago, no payment -> past_due.
+insert into subscriptions (id, account_id, paypal_subscription_id, status, next_billing_at)
+values ('dddddddd-0000-0000-0000-000000000001',
+        '11111111-1111-1111-1111-111111111111', 'I-STALESUB001', 'active',
+        now() - interval '3 days')
+on conflict (id) do nothing;
+update accounts set status = 'active' where id = '11111111-1111-1111-1111-111111111111';
+
+-- Healthy: active sub billing in the future -> must stay active.
+insert into accounts (id, name, slug, status)
+  values ('aaaaaaaa-1111-1111-1111-111111111111', 'Healthy Co', 'healthy-co', 'active')
+  on conflict (id) do nothing;
+insert into subscriptions (id, account_id, paypal_subscription_id, status, next_billing_at)
+values ('dddddddd-0000-0000-0000-000000000002',
+        'aaaaaaaa-1111-1111-1111-111111111111', 'I-HEALTHYSUB1', 'active',
+        now() + interval '20 days')
+on conflict (id) do nothing;
+
+select reconcile_billing();
+
+do $$
+declare v text; n int;
+begin
+  select status into v from subscriptions where id = 'dddddddd-0000-0000-0000-000000000001';
+  if v <> 'past_due' then raise exception 'T7a: stale subscription not flagged (status=%)', v; end if;
+
+  select status into v from accounts where id = '11111111-1111-1111-1111-111111111111';
+  if v <> 'past_due' then raise exception 'T7b: stale account not flagged (status=%)', v; end if;
+
+  select status into v from subscriptions where id = 'dddddddd-0000-0000-0000-000000000002';
+  if v <> 'active' then raise exception 'T7c: healthy subscription wrongly flagged (status=%)', v; end if;
+
+  select status into v from accounts where id = 'aaaaaaaa-1111-1111-1111-111111111111';
+  if v <> 'active' then raise exception 'T7d: healthy account wrongly flagged (status=%)', v; end if;
+
+  select count(*) into n from audit_log where action = 'billing_past_due';
+  if n < 1 then raise exception 'T7e: reconciliation wrote no audit_log row'; end if;
+end $$;
+
+-- Idempotent: a second run flags nothing new.
+do $$
+declare n int;
+begin
+  select count(*) into n from reconcile_billing();
+  if n <> 0 then raise exception 'T7f: second reconcile flagged % more (not idempotent)', n; end if;
+end $$;
+\echo '   ok'
+
 \echo 'ALL ASSERTIONS PASSED'

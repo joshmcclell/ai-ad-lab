@@ -18,10 +18,16 @@ begin
   if exists (select 1 from cron.job where jobname = 'flowbase-retention') then
     perform cron.unschedule('flowbase-retention');
   end if;
+  if exists (select 1 from cron.job where jobname = 'flowbase-reconcile-billing') then
+    perform cron.unschedule('flowbase-reconcile-billing');
+  end if;
 end $$;
 
--- Nightly at 02:00 UTC: enforce every tenant's data_retention_policies.
+-- Nightly at 02:00 UTC: enforce every tenant's data_retention_policies (W7).
 select cron.schedule('flowbase-retention', '0 2 * * *', $$ select apply_retention(); $$);
+
+-- Daily at 01:00 UTC: flag silently-unpaid subscriptions as past_due (W9).
+select cron.schedule('flowbase-reconcile-billing', '0 1 * * *', $$ select reconcile_billing(); $$);
 
 -- Inspect with:   select * from cron.job;
 -- History:        select * from cron.job_run_details order by start_time desc limit 20;

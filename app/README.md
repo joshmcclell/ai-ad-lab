@@ -21,6 +21,7 @@ schema in `../db/`.
 | `/tasks` | Open tasks with overdue flag; mark done |
 | `/admin` | Operator console (platform-admin only): provision clients, view all tenants + MRR |
 | `/api/paypal/webhook` | Verifies PayPal signatures; auto-provisions on activation; updates subscriptions/payments/accounts |
+| `/api/calcom/webhook` | Verifies Cal.com signatures; syncs bookings into `calendar_events` + activity timeline (W4) |
 
 Every data read/write goes through the RLS-scoped Supabase client, so a signed-in
 user only ever sees their own tenant. The PayPal webhook is the one deliberate

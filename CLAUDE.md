@@ -19,8 +19,10 @@ It is **documentation + database artifacts + a runnable application**. Start at
   service summary → onboarding → GDPR → scaling).
 - `db/schema.sql` — PostgreSQL schema; the multi-tenant backbone.
 - `db/seed.sql` — demo tenant, default pipeline/stages, sample records.
-- `db/functions.sql` — server-side functions: `provision_account()` (the atomic
-  "add a client" routine) and `apply_retention()` (the GDPR retention sweep, W7).
+- `db/functions.sql` — server-side functions and triggers: `provision_account()`
+  (the atomic "add a client" routine), `apply_retention()` (GDPR sweep, W7),
+  `reconcile_billing()` (billing safety net, W9), and the `on_deal_stage_change`
+  trigger (pipeline automation, W2).
 - `db/policies.sql` — Row-Level Security policies for tenant isolation.
 - `db/schedule.sql` — optional pg_cron schedule for the nightly retention sweep.
 - `db/backup.sh` — portable `pg_dump` backup with rotation (W8).
@@ -125,6 +127,13 @@ Architecture rules that matter:
 - **The PayPal webhook** (`src/app/api/paypal/webhook/route.ts`) must verify the
   signature before any DB write and is idempotent on the PayPal txn id. It mirrors
   workflows W5/W6 — keep it in sync with `docs/07` if you change billing logic.
+- **Both inbound webhooks verify a signature before any write and use the
+  service-role client.** The Cal.com webhook (`src/app/api/calcom/webhook/route.ts`,
+  W4) takes the tenant from an `account_id` query param. Public paths in
+  `middleware.ts` must include any new webhook prefix.
+- **Pipeline side effects live in the DB, not the app.** Moving a deal is just an
+  `update deals set stage_id=…`; the `on_deal_stage_change` trigger logs the
+  activity and sets won/lost/contact state. Don't duplicate that logic app-side.
 - `src/lib/types.ts` mirrors `db/schema.sql` by hand (no codegen). If you change
   the schema, update these types too.
 - Money is integer pennies everywhere; format via `src/lib/format.ts`.

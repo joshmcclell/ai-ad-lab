@@ -37,7 +37,8 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     path.startsWith("/login") ||
     path.startsWith("/auth") ||
-    path.startsWith("/api/paypal");
+    path.startsWith("/api/paypal") ||
+    path.startsWith("/api/calcom");
 
   if (!user && !isPublic) {
     const url = request.nextUrl.clone();

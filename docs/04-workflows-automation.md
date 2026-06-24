@@ -21,13 +21,16 @@ self-host) or **Make** (Path A / free tier). Node names match n8n.
 6. Write `audit_log` (`action='create'`, `entity='contact'`).
 
 ## W2 — Pipeline stage change
-**Trigger:** `deals.stage_id` changes (DB trigger / polling / NocoDB webhook).
-**Steps:**
-1. Insert `activities` row (`type='note'`, "Moved to {{stage}}").
-2. If new stage `is_won` → set `deals.status='won'`, `closed_at=now()`,
-   convert `contacts.kind` to `customer`.
-3. If `is_lost` → `status='lost'`, log reason.
-4. Optional: send templated email for specific stages (e.g. "Proposal Sent").
+**Built.** Implemented as the `on_deal_stage_change` BEFORE-UPDATE trigger on
+`deals` (`db/functions.sql`), so it fires no matter how the stage changes — the
+app's board, n8n, or raw SQL. Covered by the test harness (T6).
+**On any `deals.stage_id` change it:**
+1. Logs an `activities` row ("Moved to {{stage}}").
+2. If the new stage `is_won` → sets `status='won'`, `closed_at=now()`, and
+   promotes the linked `contacts.kind` to `customer`.
+3. If `is_lost` → `status='lost'`, `closed_at=now()`.
+4. If moved back to an open stage → reopens (`status='open'`, `closed_at=null`).
+Optional templated emails for specific stages can be layered on in n8n.
 
 ## W3 — Task reminders & follow-ups
 **Trigger:** Schedule (every 15 min).
@@ -37,10 +40,16 @@ self-host) or **Make** (Path A / free tier). Node names match n8n.
 3. Mark a `reminded_at` flag (add column or use a tag) to avoid duplicates.
 
 ## W4 — Calendar sync
-**Trigger:** Cal.com webhook (booking created/updated/cancelled).
-**Steps:**
-1. Upsert `calendar_events` (`external_id`, `starts_at`, `ends_at`, `contact_id`).
-2. Create a `tasks`/`activities` entry so the meeting shows in the contact timeline.
+**Built.** Implemented as the signature-verified webhook at
+`app/src/app/api/calcom/webhook/route.ts`. Each tenant points their Cal.com
+webhook at `…/api/calcom/webhook?account_id=<uuid>` (shared secret in
+`CALCOM_WEBHOOK_SECRET`).
+**On a booking event it:**
+1. Verifies the Cal.com HMAC-SHA256 signature before any write.
+2. Upserts `calendar_events` (idempotent on `account_id` + `external_id`),
+   linking to a contact by attendee email.
+3. Logs a `meeting` activity so it shows in the contact timeline.
+4. On cancellation, removes the event.
 
 ## W5 — PayPal payment received  *(money workflow — see `07-paypal-integration.md`)*
 **Trigger:** PayPal webhook `PAYMENT.SALE.COMPLETED` / `BILLING.SUBSCRIPTION.ACTIVATED`.
@@ -83,15 +92,21 @@ access, so it can't run inside Supabase/pg_cron).
 - **Path A (no-code):** scheduled CSV/Excel export of each NocoDB table → same storage.
 - Restore: `gunzip -c <file> | psql "$DATABASE_URL"`.
 
-## W9 — Monthly billing reconciliation
-**Trigger:** Schedule (daily).
-**Steps:**
-1. Find `subscriptions` whose `current_period_end < now()` but no recent payment.
-2. Flag `accounts.status='past_due'` and alert you — catches silent PayPal failures
-   the webhooks didn't deliver.
+## W9 — Billing reconciliation
+**Built.** Implemented as the `reconcile_billing()` function (`db/functions.sql`)
+and covered by the test harness (T7). It flags any active subscription whose next
+charge was due more than the grace window ago with no recorded payment as
+`past_due` (subscription + account) and writes an `audit_log` row — catching
+silent PayPal failures the webhooks didn't deliver. Idempotent.
+**Schedule it:** `db/schedule.sql` (pg_cron, daily 01:00) or
+`n8n/W9-billing-reconciliation.json` (which also emails you each flagged client).
+Run on demand with `select * from reconcile_billing();`.
 
 ---
 
-### Build order (do these first)
-W5 + W6 (get paid & track it) → W1 (capture leads) → W3 (never miss follow-ups)
-→ W8 (backups) → W7 (GDPR). W2/W4/W9 are quality-of-life, add after launch.
+### Status
+All nine are now built. W5/W6 (PayPal) and W4 (Cal.com) are signature-verified
+webhooks in `app/`; W2/W7/W9 are tested DB logic in `db/functions.sql`; W1/W3 are
+importable n8n workflows. Wiring order for a fresh launch: connect PayPal (W5/W6)
+→ import W1 (leads) + W3 (reminders) → schedule W7 + W9 (`db/schedule.sql`) →
+set up W8 backups → connect Cal.com (W4).
