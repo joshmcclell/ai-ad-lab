@@ -112,6 +112,14 @@ class RiskConfig:
     max_lot: float = 0.05
     lot_step: float = 0.01             # IC Markets XAUUSD volume step
 
+    # On a small account the risk-correct size can fall BELOW the 0.01 minimum
+    # (a wide gold stop + tiny balance). Default behaviour is to skip those
+    # trades rather than over-risk. Set ALLOW_MIN_LOT=true in .env to trade the
+    # 0.01 minimum anyway - accepting that such trades risk a little more than
+    # risk_per_trade_pct. The 0.05 ceiling and 2% daily-loss stop still apply.
+    allow_min_lot: bool = (os.getenv("ALLOW_MIN_LOT", "false").strip().lower()
+                           in ("1", "true", "yes", "on"))
+
     # Order execution tolerances.
     deviation_points: int = 20         # max slippage (in points) we accept
     magic_number: int = 990101         # tags this bot's orders in MT5

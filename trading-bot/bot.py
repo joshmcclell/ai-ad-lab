@@ -158,10 +158,19 @@ class ScalpingBot:
             tick_size=self._spec.tick_size,
             tick_value=self._spec.tick_value,
             contract_size=self._spec.contract_size,
+            allow_min_lot_when_undersized=self.s.risk.allow_min_lot,
         )
         if sizing.lot <= 0:
             self.log.info("Skip %s: %s", sig.direction.value, sizing.skipped_reason)
             return
+
+        # If we bumped up to the broker minimum, the realised risk is above the
+        # target % - flag it so you know on a small account.
+        actual_risk = sizing.lot * sizing.loss_per_lot
+        if actual_risk > sizing.money_at_risk * 1.05:
+            self.log.warning("Min-lot trade risks %.2f %s (> target %.2f) - small "
+                             "balance + wide stop.", actual_risk, info.currency,
+                             sizing.money_at_risk)
 
         self.log.info("Signal %s | risk %.2f %s | SLdist %.3f | lot %.2f%s | %s",
                       sig.direction.value, sizing.money_at_risk, info.currency,
