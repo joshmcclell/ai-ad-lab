@@ -110,8 +110,10 @@ class Config:
             problems.append("MT5_SERVER is missing.")
         if self.sma_fast >= self.sma_slow:
             problems.append("SMA_FAST must be smaller than SMA_SLOW.")
-        if not (0 < self.risk_per_trade <= 0.1):
-            problems.append("RISK_PER_TRADE should be between 0 and 0.1 (10%).")
+        # Risk is user-configurable up to 100% per trade. Values above 10% are
+        # aggressive and flagged loudly at startup (see bot.py), but not blocked.
+        if not (0 < self.risk_per_trade <= 1.0):
+            problems.append("RISK_PER_TRADE must be between 0 and 1.0 (0-100%).")
         if self.sl_method not in ("atr", "swing"):
             problems.append("SL_METHOD must be 'atr' or 'swing'.")
         if self.is_live and self.live_confirm != "YES_I_UNDERSTAND":

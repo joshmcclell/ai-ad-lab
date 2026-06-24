@@ -78,6 +78,14 @@ class TradingBot:
             CONFIG.rsi_oversold, CONFIG.rsi_overbought, CONFIG.sl_method,
             CONFIG.risk_reward, CONFIG.risk_per_trade * 100,
         )
+        if CONFIG.risk_per_trade > 0.10:
+            log.warning(
+                "HIGH RISK: RISK_PER_TRADE=%.0f%% per trade. A few consecutive losses "
+                "can wipe the account. You disabled the 1%% safety on purpose.",
+                CONFIG.risk_per_trade * 100,
+            )
+        if CONFIG.daily_loss_limit <= 0:
+            log.warning("DAILY LOSS LIMIT DISABLED — the bot will not pause after losing days.")
 
         while True:
             try:
