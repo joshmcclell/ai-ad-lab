@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   try {
     switch (event.event_type) {
       case "BILLING.SUBSCRIPTION.ACTIVATED":
-        await onSubscriptionStatus(supabase, event, "active", "active");
+        await onSubscriptionActivated(supabase, event);
         break;
       case "BILLING.SUBSCRIPTION.SUSPENDED":
         await onSubscriptionStatus(supabase, event, "suspended", "paused");
@@ -74,7 +74,86 @@ interface PayPalEvent {
     status?: string;
     amount?: { total?: string; value?: string; currency_code?: string };
     billing_info?: { next_billing_time?: string };
+    subscriber?: {
+      email_address?: string;
+      name?: { given_name?: string; surname?: string };
+    };
   };
+}
+
+// Ensure an account exists for an activating subscription. If the operator
+// pre-created the tenant, custom_id carries its account_id and we use it.
+// Otherwise (pure self-serve signup) we provision a fresh tenant from the
+// PayPal subscriber details — realising the "payment auto-provisions" flow
+// (docs/09). Returns the account_id, or null if we can't determine one.
+async function ensureAccountId(
+  supabase: SupabaseAdmin,
+  event: PayPalEvent
+): Promise<string | null> {
+  const customAccountId = event.resource.custom_id;
+  if (customAccountId) {
+    const { data } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("id", customAccountId)
+      .maybeSingle();
+    if (data) return (data as { id: string }).id;
+  }
+
+  const sub = event.resource.subscriber;
+  const email = sub?.email_address;
+  if (!email) return customAccountId ?? null;
+
+  const given = sub?.name?.given_name ?? "";
+  const surname = sub?.name?.surname ?? "";
+  const fullName = [given, surname].filter(Boolean).join(" ").trim() || null;
+  const accountName = fullName ? `${fullName}'s workspace` : email;
+
+  // Reuse an existing tenant if this owner email is already known, else create.
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("account_id")
+    .eq("email", email)
+    .maybeSingle();
+  if (existingUser && (existingUser as { account_id: string | null }).account_id) {
+    return (existingUser as { account_id: string }).account_id;
+  }
+
+  const { data: newId, error } = await supabase.rpc("provision_account", {
+    p_name: accountName,
+    p_owner_email: email,
+    p_owner_name: fullName,
+  });
+  if (error) {
+    console.error("provision_account failed", error);
+    return customAccountId ?? null;
+  }
+  return newId as string;
+}
+
+async function onSubscriptionActivated(
+  supabase: SupabaseAdmin,
+  event: PayPalEvent
+) {
+  const paypalSubId = event.resource.id;
+  if (!paypalSubId) return;
+
+  const accountId = await ensureAccountId(supabase, event);
+
+  await supabase.from("subscriptions").upsert(
+    {
+      paypal_subscription_id: paypalSubId,
+      account_id: accountId,
+      status: "active",
+      next_billing_at: event.resource.billing_info?.next_billing_time ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "paypal_subscription_id" }
+  );
+
+  if (accountId) {
+    await supabase.from("accounts").update({ status: "active" }).eq("id", accountId);
+  }
 }
 
 // Resolve our subscription row + account from a PayPal subscription id.

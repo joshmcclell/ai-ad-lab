@@ -25,17 +25,22 @@ to launch the business.
 | `docs/11-scaling.md` | Add clients without adding time |
 | `db/schema.sql` | PostgreSQL schema — the multi-tenant backbone (validated) |
 | `db/seed.sql` | Demo tenant + default pipeline + sample data (idempotent) |
+| `db/functions.sql` | `provision_account()` — the atomic "add a client" routine |
 | `db/policies.sql` | Row-Level Security: per-tenant isolation (validated) |
-| `app/` | **The running application** — Next.js + Supabase CRM + PayPal webhook (builds & type-checks) |
+| `db/test/` | Integration tests (seed idempotency, provisioning, RLS) — all green |
+| `app/` | **The running application** — Next.js + Supabase CRM, operator console + PayPal webhook (builds & type-checks) |
 | `n8n/` | Importable automation workflows (lead intake, task reminders) |
 
 ## Quick start (open-source path)
 
 ```bash
 # Any PostgreSQL 14+ (e.g. a free Supabase project)
-psql "$DATABASE_URL" -f db/schema.sql     # tables, views, triggers
+psql "$DATABASE_URL" -f db/schema.sql      # tables, views, triggers
 psql "$DATABASE_URL" -f db/seed.sql        # demo tenant + default pipeline
+psql "$DATABASE_URL" -f db/functions.sql   # provision_account(), etc.
 psql "$DATABASE_URL" -f db/policies.sql    # tenant isolation via RLS
+
+db/test/run-tests.sh                       # optional: verify it all (green)
 ```
 
 Then run the app:

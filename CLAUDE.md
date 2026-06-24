@@ -19,9 +19,12 @@ It is **documentation + database artifacts + a runnable application**. Start at
   service summary → onboarding → GDPR → scaling).
 - `db/schema.sql` — PostgreSQL schema; the multi-tenant backbone.
 - `db/seed.sql` — demo tenant, default pipeline/stages, sample records.
+- `db/functions.sql` — server-side functions; notably `provision_account()`,
+  the atomic "add a client" routine.
 - `db/policies.sql` — Row-Level Security policies for tenant isolation.
+- `db/test/` — integration test harness (`run-tests.sh` + `assertions.sql`).
 - `app/` — the Next.js 14 (App Router) + Supabase application implementing the
-  open-source build path, including the PayPal billing webhook.
+  open-source build path, including the PayPal billing webhook and operator console.
 - `n8n/` — importable automation workflow JSON (lead intake, task reminders).
 
 ## Core architecture (read before changing `db/`)
@@ -53,12 +56,26 @@ Apply in this order (the only "build/run" in the repo):
 ```bash
 psql "$DATABASE_URL" -f db/schema.sql
 psql "$DATABASE_URL" -f db/seed.sql       # idempotent — safe to re-run
+psql "$DATABASE_URL" -f db/functions.sql  # provision_account(), etc.
 psql "$DATABASE_URL" -f db/policies.sql   # RLS; works on Supabase and plain PG
 ```
 
-To validate changes locally without a server account, run a throwaway Postgres
-(must run as a non-root user, e.g. `su postgres -c ...`; Unix socket dirs must be
-short, under ~100 chars) and apply the three files with `-v ON_ERROR_STOP=1`.
+To validate changes, run the integration tests — they spin up a throwaway
+Postgres, apply all four files (seed twice, to prove idempotency), and assert
+seed/provisioning/RLS invariants:
+
+```bash
+db/test/run-tests.sh        # exits non-zero on the first failed assertion
+```
+
+The harness must run as a non-root user (it re-execs as `postgres` if root) and
+keeps the Unix socket dir short (<100 chars). Add new invariants to
+`db/test/assertions.sql` (each check RAISEs on failure under `ON_ERROR_STOP=1`).
+
+**New tenants are created via `provision_account(name, email, ...)`** — never by
+hand-inserting an `accounts` row, which would skip the default pipeline, stages,
+retention policies, and owner user. The PayPal webhook and the operator console
+both call it; keep it the single provisioning path.
 
 Conventions in the schema:
 - Money is stored in integer **pennies** (`*_pennies`), currency in `char(3)`

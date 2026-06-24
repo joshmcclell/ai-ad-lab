@@ -19,7 +19,8 @@ schema in `../db/`.
 | `/contacts`, `/contacts/[id]` | Contact list + detail with activity timeline and "log a note" |
 | `/pipeline` | Visual board: deals grouped by stage, move via server action |
 | `/tasks` | Open tasks with overdue flag; mark done |
-| `/api/paypal/webhook` | Verifies PayPal signatures; updates subscriptions/payments/accounts |
+| `/admin` | Operator console (platform-admin only): provision clients, view all tenants + MRR |
+| `/api/paypal/webhook` | Verifies PayPal signatures; auto-provisions on activation; updates subscriptions/payments/accounts |
 
 Every data read/write goes through the RLS-scoped Supabase client, so a signed-in
 user only ever sees their own tenant. The PayPal webhook is the one deliberate
@@ -34,6 +35,7 @@ npm install
 # Apply the database first (from repo root):
 #   psql "$DATABASE_URL" -f ../db/schema.sql
 #   psql "$DATABASE_URL" -f ../db/seed.sql
+#   psql "$DATABASE_URL" -f ../db/functions.sql
 #   psql "$DATABASE_URL" -f ../db/policies.sql
 npm run dev                     # http://localhost:3000
 ```

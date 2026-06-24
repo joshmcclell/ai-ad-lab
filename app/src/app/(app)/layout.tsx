@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/auth";
 import { signOut } from "./actions";
 
 const nav = [
@@ -15,11 +15,9 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const current = await getCurrentUser();
+  if (!current) redirect("/login");
+  const { authUser, profile } = current;
 
   return (
     <div className="flex min-h-screen">
@@ -37,9 +35,17 @@ export default async function AppLayout({
               {item.label}
             </Link>
           ))}
+          {profile?.is_platform_admin && (
+            <Link
+              href="/admin"
+              className="block rounded-lg px-3 py-2 text-sm font-medium text-brand hover:bg-surface"
+            >
+              Operator console
+            </Link>
+          )}
         </nav>
         <div className="border-t border-slate-200 p-3">
-          <p className="truncate px-2 pb-2 text-xs text-slate-500">{user.email}</p>
+          <p className="truncate px-2 pb-2 text-xs text-slate-500">{authUser.email}</p>
           <form action={signOut}>
             <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-600 hover:bg-surface">
               Sign out

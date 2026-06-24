@@ -12,26 +12,29 @@ comfort with a terminal.
 
 ## Step 1 — Database (20 min)
 1. Create a Supabase project; grab the connection string (`DATABASE_URL`).
-2. Apply the schema:
+2. Apply the database:
    ```bash
    psql "$DATABASE_URL" -f db/schema.sql
    psql "$DATABASE_URL" -f db/seed.sql        # demo tenant + default pipeline
+   psql "$DATABASE_URL" -f db/functions.sql   # provision_account(), etc.
    psql "$DATABASE_URL" -f db/policies.sql    # tenant isolation via RLS
    ```
+   Optionally run `db/test/run-tests.sh` first to confirm the SQL is healthy.
 3. In Supabase → Authentication, enable email logins. When a user signs up,
    store their `auth.users.id` into `users.auth_uid` (a trigger or your app's
    signup handler) so `current_account_id()` / RLS resolve correctly.
 
 ## Step 2 — Frontend (1–2 h)
-1. `npx create-next-app@latest flowbase-web` and deploy to Vercel.
-2. Add `@supabase/supabase-js`; use the project URL + anon key.
-3. Because RLS is on, the client SDK automatically scopes every query to the
-   signed-in user's tenant — build screens for: contacts list, contact detail
-   (with `activities` timeline), Kanban board over `deals`, tasks, and a
-   dashboard reading the `v_pipeline_value` / `v_conversion` / `v_activity_daily`
-   views (Supabase realtime keeps them live).
-4. (Optional) Skip building dashboards by pointing **Metabase** at the same
-   Postgres instead.
+The app in `app/` already implements this (it builds and type-checks). To use it
+as-is: `cd app`, copy `.env.example` to `.env.local`, fill in the Supabase +
+PayPal values, `npm install`, then `npm run dev` (deploy to Vercel for prod).
+
+It ships: magic-link auth, a dashboard over the `v_pipeline_value` /
+`v_conversion` views, contacts list + detail with the `activities` timeline, a
+pipeline board over `deals`, tasks, an **operator console** (`/admin`) for
+provisioning clients, and the PayPal webhook. Because RLS is on, every query is
+automatically scoped to the signed-in user's tenant. (Prefer to build your own
+or use Metabase for dashboards? The schema supports it.)
 
 ## Step 3 — Automation engine (45 min)
 1. On your free VM, run n8n via Docker:
@@ -58,17 +61,26 @@ Follow `07-paypal-integration.md`. Webhook target = your n8n W5/W6 webhook URL
 - W7: a daily n8n cron applies `data_retention_policies` (anonymise/delete).
 
 ## Step 7 — New-tenant provisioning (the "add a client" routine)
-For each new paying client, one script/n8n flow does:
-1. `insert into accounts(...)` → new tenant.
-2. Create default `pipelines` + `stages` (copy from seed).
-3. Create the client's first `users` row + send a Supabase invite.
-4. Create default `data_retention_policies`.
-5. Email them their login + booking link.
-(See `09-client-onboarding.md` — this is the step you automate to scale.)
+This is built. A single atomic DB function, `provision_account()`
+(`db/functions.sql`), creates the tenant + default pipeline & stages + retention
+policies + owner user in one transaction. It is the **only** supported way to
+create a tenant (a bare `insert into accounts` would skip the defaults).
+
+Three ways it runs:
+- **Operator console** — sign in as a platform admin and use `/admin` to add a
+  client by name + owner email.
+- **Self-serve via PayPal** — on `BILLING.SUBSCRIPTION.ACTIVATED`, the webhook
+  (`app/src/app/api/paypal/webhook/route.ts`) auto-provisions from the
+  subscriber's details if no tenant exists yet.
+- **Script / SQL** — `select provision_account('Acme Ltd', 'jane@acme.co', 'Jane');`
+
+After provisioning, send the owner a Supabase magic-link invite + the booking
+link (see `09-client-onboarding.md`).
 
 ## Step 8 — Launch checklist
+- [ ] `db/test/run-tests.sh` is green (seed idempotency, provisioning, RLS).
 - [ ] RLS verified: a tenant user cannot read another tenant's rows.
-- [ ] PayPal sandbox subscription → `payments` + `accounts.status='active'`.
+- [ ] PayPal sandbox subscription → tenant provisioned + `accounts.status='active'`.
 - [ ] Lead form → contact + task + email.
 - [ ] `pg_dump` backup lands in storage.
 - [ ] Retention sweep runs without touching in-retention data.
