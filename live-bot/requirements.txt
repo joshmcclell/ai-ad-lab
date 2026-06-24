@@ -1,0 +1,10 @@
+# XAU/USD scalping bot dependencies
+#
+# NOTE: MetaTrader5 is a Windows-only package (it talks to the MT5 terminal via
+# its native API). On Linux/macOS install it under Wine, or run the bot inside a
+# Windows VM. The backtester and all pure-Python modules work on any OS.
+MetaTrader5>=5.0.45 ; platform_system == "Windows"
+pandas>=2.0
+numpy>=1.24
+pandas-ta>=0.3.14b0
+python-dotenv>=1.0.0
